@@ -22,7 +22,7 @@ export function SelectionBar({
     : "None";
 
   return (
-    <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+    <div className="flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <div className="w-full rounded-2xl bg-sky-100 px-4 py-2 text-sm font-medium text-sky-800 sm:w-auto sm:rounded-full">
         <span className="block truncate sm:overflow-visible sm:text-clip sm:whitespace-normal">
           Current: {currentSelectionText}
