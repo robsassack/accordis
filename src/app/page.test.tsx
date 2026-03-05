@@ -26,7 +26,7 @@ describe("Home page", () => {
     await user.click(screen.getByRole("button", { name: "Select G4" }));
 
     expect(screen.getByText("C Major")).toBeInTheDocument();
-    expect(screen.getByText("Root position")).toBeInTheDocument();
+    expect(screen.getByText("Root")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Clear selected keys" }));
 
@@ -69,5 +69,6 @@ describe("Home page", () => {
     expect(screen.getByText("D7/F♯")).toBeInTheDocument();
     expect(screen.getByText("D Dominant 7")).toBeInTheDocument();
     expect(screen.getByText("1st inversion")).toBeInTheDocument();
+    expect(screen.getByText("Partial: No 5th")).toBeInTheDocument();
   });
 });

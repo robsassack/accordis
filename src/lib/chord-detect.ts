@@ -261,6 +261,7 @@ export function detectChords(selectedKeyIds: string[]): ChordMatch[] {
         inversionLabel,
         bass: bassPitchClass,
         slashSymbol,
+        partialOmission: omittedFifth ? "fifth" : null,
         score,
       });
     }
@@ -277,5 +278,6 @@ export function detectChords(selectedKeyIds: string[]): ChordMatch[] {
       inversionLabel: match.inversionLabel,
       bass: match.bass,
       slashSymbol: match.slashSymbol,
+      partialOmission: match.partialOmission,
     }));
 }

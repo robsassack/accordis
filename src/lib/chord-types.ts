@@ -22,6 +22,7 @@ export type ChordMatch = {
   inversionLabel: string;
   bass: PitchClass;
   slashSymbol: string | null;
+  partialOmission: "fifth" | "seventh" | null;
 };
 
 export type IntervalMatch = {

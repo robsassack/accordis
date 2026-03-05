@@ -38,6 +38,7 @@ describe("detectChords", () => {
       name: "C Major",
       inversionLabel: "Root position",
       slashSymbol: null,
+      partialOmission: null,
     });
   });
 
@@ -60,6 +61,7 @@ describe("detectChords", () => {
       slashSymbol: "D7/F#",
       inversionLabel: "1st inversion",
       bass: "F#",
+      partialOmission: "fifth",
     });
   });
 
@@ -71,6 +73,7 @@ describe("detectChords", () => {
       slashSymbol: "D7/C",
       inversionLabel: "3rd inversion",
       bass: "C",
+      partialOmission: "fifth",
     });
   });
 
@@ -85,6 +88,7 @@ describe("detectChords", () => {
       symbol: "D7",
       slashSymbol: null,
       inversionLabel: "Root position",
+      partialOmission: null,
     });
   });
 });
