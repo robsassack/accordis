@@ -133,6 +133,21 @@ describe("Home page", () => {
     expect(screen.getAllByText("9th").length).toBeGreaterThan(0);
   });
 
+  it("shows 9th extension badge for add9 chord detections", async () => {
+    const user = userEvent.setup();
+
+    render(<Home />);
+
+    await user.click(screen.getByRole("button", { name: "Clear selected keys" }));
+    await user.click(screen.getByRole("button", { name: "Select F4" }));
+    await user.click(screen.getByRole("button", { name: "Select G4" }));
+    await user.click(screen.getByRole("button", { name: "Select A4" }));
+    await user.click(screen.getByRole("button", { name: "Select C5" }));
+
+    expect(screen.getByText("Fadd9")).toBeInTheDocument();
+    expect(screen.getAllByText("9th").length).toBeGreaterThan(0);
+  });
+
   it("shows a badge explanation popup when a badge is clicked", async () => {
     const user = userEvent.setup();
 

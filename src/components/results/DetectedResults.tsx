@@ -107,8 +107,8 @@ export function DetectedResults({
     augmented: "Triad",
     suspended2: "Triad",
     suspended4: "Triad",
-    majorAdd9: "Triad",
-    minorAdd9: "Triad",
+    majorAdd9: "9th",
+    minorAdd9: "9th",
     suspendedDominant7: "7th",
     major6: "7th",
     minor6: "7th",
@@ -125,17 +125,9 @@ export function DetectedResults({
     minor9: "9th",
     major6Add9: "9th",
   };
-  const getOmittedNoteForMatch = (match: ChordMatch): PitchClass | null => {
-    if (match.partialOmission === "fifth") {
-      return match.notes[2] ?? null;
-    }
-
-    if (match.partialOmission === "seventh") {
-      return match.notes[3] ?? null;
-    }
-
-    return null;
-  };
+  const selectedPitchClassSet = new Set(uniquePitchClasses);
+  const getOmittedNoteForMatch = (match: ChordMatch): PitchClass | null =>
+    match.notes.find((note) => !selectedPitchClassSet.has(note)) ?? null;
   const getFifthNoteForMatch = (match: ChordMatch): PitchClass | null => match.notes[2] ?? null;
 
   return (

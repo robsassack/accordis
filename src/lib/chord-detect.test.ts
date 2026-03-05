@@ -166,6 +166,20 @@ describe("detectChords", () => {
     );
   });
 
+  it("detects Fadd9 with omitted fifth from F, G, A", () => {
+    const matches = detectChords(["F4", "G4", "A4"]);
+
+    expect(matches).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          symbol: "Fadd9",
+          notes: ["F", "G", "A", "C"],
+          partialOmission: "fifth",
+        }),
+      ]),
+    );
+  });
+
   it("keeps root-bass matches ranked above slash alternatives", () => {
     const [first] = detectChords(["C3", "E4", "G4", "A4"]);
 
