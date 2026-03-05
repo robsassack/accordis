@@ -71,7 +71,7 @@ export function PianoKeyboard({
     <div className="relative pb-2">
       <div className="mb-2 h-4 sm:hidden">
         <p
-          className={`text-xs font-medium text-slate-500 transition-opacity duration-200 ${
+          className={`text-xs font-medium text-slate-500 transition-opacity dark:text-slate-400 duration-200 ${
             showScrollHint ? "opacity-100" : "opacity-0"
           }`}
           aria-hidden={!showScrollHint}
@@ -81,7 +81,7 @@ export function PianoKeyboard({
       </div>
       <div className="relative">
         {showLeftFade ? (
-          <div className="pointer-events-none absolute inset-y-0 -left-px z-20 w-5 bg-linear-to-r from-white via-white/70 to-transparent sm:hidden" />
+          <div className="pointer-events-none absolute inset-y-0 -left-px z-20 w-5 bg-linear-to-r from-white via-white/70 to-transparent dark:from-slate-900 dark:via-slate-900/70 sm:hidden" />
         ) : null}
         <div
           ref={scrollContainerRef}
@@ -100,10 +100,10 @@ export function PianoKeyboard({
                   type="button"
                   data-key-id={id}
                   onClick={() => onKeyClick(id)}
-                  className={`relative h-full flex-1 rounded-b-md border border-slate-300 pb-3 text-xs font-medium transition ${
+                  className={`relative h-full flex-1 rounded-b-md border border-slate-300 pb-3 text-xs font-medium transition dark:border-slate-700 ${
                     isSelected
-                      ? "bg-sky-100 text-sky-900"
-                      : "bg-white text-slate-700 hover:bg-slate-100"
+                      ? "bg-sky-100 text-sky-900 dark:bg-sky-900/50 dark:text-sky-100"
+                      : "bg-white text-slate-700 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                   }`}
                   aria-label={`Select ${formatMusicText(id, notationPreference)}`}
                 >
@@ -131,8 +131,8 @@ export function PianoKeyboard({
                 type="button"
                 data-key-id={id}
                 onClick={() => onKeyClick(id)}
-                className={`absolute z-10 h-28 rounded-b-md border-x border-b border-slate-900 text-[10px] font-medium text-white transition sm:mt-1 sm:h-35 ${
-                  isSelected ? "bg-sky-700" : "bg-slate-900 hover:bg-slate-700"
+                className={`absolute z-10 h-28 rounded-b-md border-x border-b border-slate-900 text-[10px] font-medium text-white transition dark:border-slate-950 sm:mt-1 sm:h-35 ${
+                  isSelected ? "bg-sky-700 dark:bg-sky-600" : "bg-slate-900 hover:bg-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700"
                 }`}
                 style={{
                   left: `calc(${left}% - ${blackKeyGapReductionPx}px)`,

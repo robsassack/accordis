@@ -83,7 +83,7 @@ function BadgeWithTooltip({
           ref={tooltipRef}
           id={`${id}-tooltip`}
           role="tooltip"
-          className="absolute right-0 top-full z-20 mt-1 w-52 max-w-[calc(100vw-1rem)] rounded-md border border-slate-300 bg-white px-2 py-1 text-left text-[11px] font-medium leading-snug text-slate-700 shadow-lg"
+          className="absolute right-0 top-full z-20 mt-1 w-52 max-w-[calc(100vw-1rem)] rounded-md border border-slate-300 bg-white px-2 py-1 text-left text-[11px] font-medium leading-snug text-slate-700 shadow-lg dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
         >
           {explanation}
         </span>
@@ -98,7 +98,7 @@ export function DetectedResults({
   chordMatches,
   notationPreference,
 }: DetectedResultsProps) {
-  const helperMessageClassName = "text-sm text-slate-600";
+  const helperMessageClassName = "text-sm text-slate-600 dark:text-slate-400";
   const [openBadgeId, setOpenBadgeId] = useState<string | null>(null);
   const extensionByQuality: Record<ChordMatch["quality"], "Triad" | "7th" | "9th"> = {
     major: "Triad",
@@ -131,8 +131,8 @@ export function DetectedResults({
   const getFifthNoteForMatch = (match: ChordMatch): PitchClass | null => match.notes[2] ?? null;
 
   return (
-    <div className="mt-8 border-t border-slate-200 pt-6">
-      <h2 className="text-lg font-semibold text-slate-800">Detected Chords</h2>
+    <div className="mt-6 border-t border-slate-200 pt-6 dark:border-slate-800">
+      <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Detected Chords</h2>
       {uniquePitchClasses.length === 0 ? (
         <p className={`mt-3 ${helperMessageClassName}`}>
           Select notes to see interval and chord details.
@@ -142,26 +142,26 @@ export function DetectedResults({
           {intervalMatches.map((match, index) => (
             <article
               key={`${match.symbol}-${match.notes.join("-")}`}
-              className="rounded-xl border border-slate-200 bg-slate-50 p-4 transition-all duration-300 ease-out starting:translate-y-2 starting:opacity-0"
+              className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/50 transition-all duration-300 ease-out starting:translate-y-2 starting:opacity-0"
             >
               <div className="flex items-start justify-between gap-2">
-                <p className="text-base font-semibold text-slate-900">
+                <p className="text-base font-semibold text-slate-900 dark:text-slate-100">
                   {formatMusicText(match.symbol, notationPreference)}
                 </p>
                 <BadgeWithTooltip
                   id={`interval-${index}-${match.symbol}`}
                   label="Interval"
                   explanation="Detected as an interval because fewer than 3 unique notes are selected."
-                  className="rounded-full border border-sky-200 bg-sky-100 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-sky-800"
+                  className="rounded-full border border-sky-200 bg-sky-100 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-sky-800 dark:border-sky-800 dark:bg-sky-900/40 dark:text-sky-200"
                   isOpen={openBadgeId === `interval-${index}-${match.symbol}`}
                   onOpen={setOpenBadgeId}
                   onClose={() => setOpenBadgeId(null)}
                 />
               </div>
-              <p className="mt-1 text-sm text-slate-700">
+              <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
                 {formatMusicText(match.name, notationPreference)}
               </p>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 Notes:{" "}
                 {match.notes
                   .map((note) => formatMusicText(note, notationPreference))
@@ -180,10 +180,10 @@ export function DetectedResults({
           {chordMatches.map((match, index) => (
             <article
               key={`${match.symbol}-${match.slashSymbol ?? "root"}`}
-              className="rounded-xl border border-slate-200 bg-slate-50 p-4 transition-all duration-300 ease-out starting:translate-y-2 starting:opacity-0"
+              className="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/50 transition-all duration-300 ease-out starting:translate-y-2 starting:opacity-0"
             >
               <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-start sm:justify-between">
-                <p className="min-w-0 text-base font-semibold text-slate-900">
+                <p className="min-w-0 text-base font-semibold text-slate-900 dark:text-slate-100">
                   {formatMusicText(match.slashSymbol ?? match.symbol, notationPreference)}
                 </p>
                 <div className="-ml-1 -mt-1 mb-1 flex w-full flex-wrap items-center gap-x-1 gap-y-1 sm:ml-0 sm:mt-0 sm:mb-0 sm:w-auto sm:justify-end sm:gap-y-0">
@@ -197,8 +197,8 @@ export function DetectedResults({
                     }
                     className={`rounded-full px-2 py-0.5 text-[10px] font-semibold tracking-wide ${
                       index === 0
-                        ? "border border-emerald-200 bg-emerald-100 text-emerald-800"
-                        : "border border-slate-200 bg-slate-100 text-slate-700"
+                        ? "border border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200"
+                        : "border border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                     }`}
                     isOpen={openBadgeId === `rank-${index}-${match.symbol}`}
                     onOpen={setOpenBadgeId}
@@ -211,7 +211,7 @@ export function DetectedResults({
                       explanation={`This match is grouped as a ${extensionByQuality[
                         match.quality
                       ].toLowerCase()} chord family.`}
-                      className="rounded-full border border-sky-200 bg-sky-100 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-sky-800"
+                      className="rounded-full border border-sky-200 bg-sky-100 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-sky-800 dark:border-sky-800 dark:bg-sky-900/40 dark:text-sky-200"
                       isOpen={openBadgeId === `ext-${index}-${match.symbol}`}
                       onOpen={setOpenBadgeId}
                       onClose={() => setOpenBadgeId(null)}
@@ -227,7 +227,7 @@ export function DetectedResults({
                         getFifthNoteForMatch(match) ?? "unknown",
                         notationPreference,
                       )}.`}
-                      className="rounded-full border border-rose-200 bg-rose-100 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-rose-800"
+                      className="rounded-full border border-rose-200 bg-rose-100 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-rose-800 dark:border-rose-800 dark:bg-rose-900/40 dark:text-rose-200"
                       isOpen={openBadgeId === `alt-${index}-${match.symbol}`}
                       onOpen={setOpenBadgeId}
                       onClose={() => setOpenBadgeId(null)}
@@ -241,7 +241,7 @@ export function DetectedResults({
                         match.bass,
                         notationPreference,
                       )}) is the chord root.`}
-                      className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-slate-700"
+                      className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
                       isOpen={openBadgeId === `inv-${index}-${match.symbol}`}
                       onOpen={setOpenBadgeId}
                       onClose={() => setOpenBadgeId(null)}
@@ -251,7 +251,7 @@ export function DetectedResults({
                       id={`inv-${index}-${match.symbol}`}
                       label={match.inversionLabel}
                       explanation={`Lowest selected note produces ${match.inversionLabel.toLowerCase()} voicing.`}
-                      className="rounded-full border border-violet-200 bg-violet-100 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-violet-800"
+                      className="rounded-full border border-violet-200 bg-violet-100 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-violet-800 dark:border-violet-800 dark:bg-violet-900/40 dark:text-violet-200"
                       isOpen={openBadgeId === `inv-${index}-${match.symbol}`}
                       onOpen={setOpenBadgeId}
                       onClose={() => setOpenBadgeId(null)}
@@ -269,7 +269,7 @@ export function DetectedResults({
                           notationPreference,
                         )
                       }.`}
-                      className="rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-amber-800"
+                      className="rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-amber-800 dark:border-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
                       isOpen={openBadgeId === `partial-${index}-${match.symbol}`}
                       onOpen={setOpenBadgeId}
                       onClose={() => setOpenBadgeId(null)}
@@ -277,10 +277,10 @@ export function DetectedResults({
                   )}
                 </div>
               </div>
-              <p className="mt-1 text-sm text-slate-700">
+              <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
                 {formatMusicText(match.name, notationPreference)}
               </p>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                 Notes:{" "}
                 {match.notes
                   .map((note) => formatMusicText(note, notationPreference))
