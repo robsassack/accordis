@@ -51,4 +51,40 @@ describe("detectChords", () => {
       bass: "E",
     });
   });
+
+  it("detects first inversion dominant seventh with omitted fifth", () => {
+    const [match] = detectChords(["F#3", "C4", "D4"]);
+
+    expect(match).toMatchObject({
+      symbol: "D7",
+      slashSymbol: "D7/F#",
+      inversionLabel: "1st inversion",
+      bass: "F#",
+    });
+  });
+
+  it("detects third inversion dominant seventh with omitted fifth", () => {
+    const [match] = detectChords(["C4", "D4", "F#4"]);
+
+    expect(match).toMatchObject({
+      symbol: "D7",
+      slashSymbol: "D7/C",
+      inversionLabel: "3rd inversion",
+      bass: "C",
+    });
+  });
+
+  it("keeps triads strict when the fifth is omitted", () => {
+    expect(detectChords(["C4", "E4", "C5"])).toEqual([]);
+  });
+
+  it("prefers full seventh voicings over omitted-fifth matches", () => {
+    const [match] = detectChords(["D4", "F#4", "A4", "C5"]);
+
+    expect(match).toMatchObject({
+      symbol: "D7",
+      slashSymbol: null,
+      inversionLabel: "Root position",
+    });
+  });
 });

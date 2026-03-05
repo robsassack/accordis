@@ -55,4 +55,19 @@ describe("Home page", () => {
     expect(screen.getByText("Current: D♭4, F4, A♭4")).toBeInTheDocument();
     expect(localStorage.getItem("accordis-notation-preference")).toBe("flats");
   });
+
+  it("shows slash notation for a dominant seventh inversion with omitted fifth", async () => {
+    const user = userEvent.setup();
+
+    render(<Home />);
+
+    await user.click(screen.getByRole("button", { name: "Clear selected keys" }));
+    await user.click(screen.getByRole("button", { name: "Select F♯4" }));
+    await user.click(screen.getByRole("button", { name: "Select C5" }));
+    await user.click(screen.getByRole("button", { name: "Select D5" }));
+
+    expect(screen.getByText("D7/F♯")).toBeInTheDocument();
+    expect(screen.getByText("D Dominant 7")).toBeInTheDocument();
+    expect(screen.getByText("1st inversion")).toBeInTheDocument();
+  });
 });

@@ -133,6 +133,14 @@ function setsEqual(left: Set<number>, right: Set<number>): boolean {
   return true;
 }
 
+function buildChordSet(rootIndex: number, intervals: number[]): Set<number> {
+  return new Set(intervals.map((interval) => (rootIndex + interval) % 12));
+}
+
+function setWithoutInterval(intervals: number[], omittedInterval: number): number[] {
+  return intervals.filter((interval) => interval !== omittedInterval);
+}
+
 function buildInversionLabel(intervals: number[], bassInterval: number): string {
   const index = intervals.indexOf(bassInterval);
   if (index <= 0) {
@@ -207,16 +215,26 @@ export function detectChords(selectedKeyIds: string[]): ChordMatch[] {
 
   const bassIndex = pitchClassToIndex(bassPitchClass);
   const matches: Array<ChordMatch & { score: number }> = [];
+  const FIFTH_INTERVAL_INDEX = 2;
 
   for (let rootIndex = 0; rootIndex < 12; rootIndex += 1) {
     for (const template of CHORD_TEMPLATES) {
-      if (template.intervals.length !== selectedSet.size) {
-        continue;
+      let isMatch = false;
+      let omittedFifth = false;
+
+      if (template.intervals.length === selectedSet.size) {
+        const fullChordSet = buildChordSet(rootIndex, template.intervals);
+        isMatch = setsEqual(selectedSet, fullChordSet);
+      } else if (template.intervals.length === 4 && selectedSet.size === 3) {
+        // Common jazz/pop voicing: seventh chords with omitted fifth.
+        const fifthInterval = template.intervals[FIFTH_INTERVAL_INDEX];
+        const intervalsWithoutFifth = setWithoutInterval(template.intervals, fifthInterval);
+        const noFifthSet = buildChordSet(rootIndex, intervalsWithoutFifth);
+        isMatch = setsEqual(selectedSet, noFifthSet);
+        omittedFifth = isMatch;
       }
 
-      const chordSet = new Set(template.intervals.map((interval) => (rootIndex + interval) % 12));
-
-      if (!setsEqual(selectedSet, chordSet)) {
+      if (!isMatch) {
         continue;
       }
 
@@ -232,7 +250,7 @@ export function detectChords(selectedKeyIds: string[]): ChordMatch[] {
       const symbol = `${root}${template.suffix}`;
       const slashSymbol = bassPitchClass === root ? null : `${symbol}/${bassPitchClass}`;
       const name = `${root} ${template.label}`;
-      const score = (bassPitchClass === root ? 0 : 8) + template.rank;
+      const score = (bassPitchClass === root ? 0 : 8) + template.rank + (omittedFifth ? 2 : 0);
 
       matches.push({
         name,
