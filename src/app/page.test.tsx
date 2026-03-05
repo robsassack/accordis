@@ -17,11 +17,12 @@ describe("Home page", () => {
 
     render(<Home />);
 
-    expect(screen.getByText("Current: C4")).toBeInTheDocument();
+    expect(screen.getByText("Current: None")).toBeInTheDocument();
     expect(
-      screen.getByText("Select at least 3 unique notes to detect a chord."),
+      screen.getByText("Select notes to see interval and chord details."),
     ).toBeInTheDocument();
 
+    await user.click(screen.getByRole("button", { name: "Select C4" }));
     await user.click(screen.getByRole("button", { name: "Select E4" }));
     await user.click(screen.getByRole("button", { name: "Select G4" }));
 

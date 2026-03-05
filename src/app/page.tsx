@@ -29,7 +29,7 @@ function getInitialNotationPreference(): NotationPreference {
 }
 
 export default function Home() {
-  const [selectedKeys, setSelectedKeys] = useState<string[]>(["C4"]);
+  const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [notationPreference, setNotationPreference] = useState<NotationPreference>(
     getInitialNotationPreference,
   );

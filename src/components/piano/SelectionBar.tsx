@@ -17,16 +17,18 @@ export function SelectionBar({
 }: SelectionBarProps) {
   const hasSelectedKeys = selectedKeys.length > 0;
   const isSharps = notationPreference === "sharps";
+  const currentSelectionText = hasSelectedKeys
+    ? selectedKeys.map((key) => formatMusicText(key, notationPreference)).join(", ")
+    : "None";
 
   return (
-    <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-      <div className="rounded-full bg-sky-100 px-4 py-2 text-sm font-medium text-sky-800">
-        Current:{" "}
-        {hasSelectedKeys
-          ? selectedKeys.map((key) => formatMusicText(key, notationPreference)).join(", ")
-          : "None"}
+    <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <div className="w-full rounded-2xl bg-sky-100 px-4 py-2 text-sm font-medium text-sky-800 sm:w-auto sm:rounded-full">
+        <span className="block truncate sm:overflow-visible sm:text-clip sm:whitespace-normal">
+          Current: {currentSelectionText}
+        </span>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-end gap-2">
         <div className="relative inline-flex h-8 rounded-full border border-slate-300 bg-white p-0.5">
           <span
             aria-hidden="true"
