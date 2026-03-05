@@ -1,9 +1,10 @@
-import { formatMusicText, type PianoKey } from "@/lib/piano";
+import { formatMusicText, type NotationPreference, type PianoKey } from "@/lib/piano";
 
 type PianoKeyboardProps = {
   keys: PianoKey[];
   selectedKeys: string[];
   onKeyClick: (keyId: string) => void;
+  notationPreference: NotationPreference;
   blackKeyWidthPercent?: number;
   blackKeyGapReductionPx?: number;
 };
@@ -12,6 +13,7 @@ export function PianoKeyboard({
   keys,
   selectedKeys,
   onKeyClick,
+  notationPreference,
   blackKeyWidthPercent = 4.8,
   blackKeyGapReductionPx = 2.5,
 }: PianoKeyboardProps) {
@@ -24,7 +26,7 @@ export function PianoKeyboard({
   return (
     <div className="pb-2">
       <div className="relative mx-auto h-44 w-full max-w-4xl select-none sm:h-56">
-        <div className="absolute inset-x-0 bottom-0 flex h-[180px] sm:h-[220px]">
+        <div className="absolute inset-x-0 bottom-0 flex h-45 sm:h-55">
           {whiteKeys.map((key) => {
             const id = `${key.note}${key.octave}`;
             const isSelected = selectedKeys.includes(id);
@@ -39,10 +41,10 @@ export function PianoKeyboard({
                     ? "bg-sky-100 text-sky-900"
                     : "bg-white text-slate-700 hover:bg-slate-100"
                 }`}
-                aria-label={`Select ${id}`}
+                aria-label={`Select ${formatMusicText(id, notationPreference)}`}
               >
                 <span className="absolute bottom-3 left-1/2 -translate-x-1/2">
-                  {formatMusicText(id)}
+                  {formatMusicText(id, notationPreference)}
                 </span>
               </button>
             );
@@ -64,16 +66,18 @@ export function PianoKeyboard({
               key={id}
               type="button"
               onClick={() => onKeyClick(id)}
-              className={`absolute z-10 mt-1 h-[112px] rounded-b-md border-x border-b border-slate-900 text-[10px] font-medium text-white transition sm:h-[140px] ${
+              className={`absolute z-10 mt-1 h-28 rounded-b-md border-x border-b border-slate-900 text-[10px] font-medium text-white transition sm:h-35 ${
                 isSelected ? "bg-sky-700" : "bg-slate-900 hover:bg-slate-700"
               }`}
               style={{
                 left: `calc(${left}% - ${blackKeyGapReductionPx}px)`,
                 width: `calc(${blackKeyWidthPercent}% + ${blackKeyGapReductionPx * 2}px)`,
               }}
-              aria-label={`Select ${id}`}
+              aria-label={`Select ${formatMusicText(id, notationPreference)}`}
             >
-              <span className="mt-24 inline-block">{formatMusicText(id)}</span>
+              <span className="mt-24 inline-block">
+                {formatMusicText(id, notationPreference)}
+              </span>
             </button>
           );
         })}

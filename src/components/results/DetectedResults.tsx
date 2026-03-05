@@ -1,17 +1,19 @@
 import { MIN_UNIQUE_NOTES_FOR_CHORD } from "@/lib/chord-detect";
 import type { ChordMatch, IntervalMatch } from "@/lib/chord-types";
-import { formatMusicText, type PitchClass } from "@/lib/piano";
+import { formatMusicText, type NotationPreference, type PitchClass } from "@/lib/piano";
 
 type DetectedResultsProps = {
   uniquePitchClasses: PitchClass[];
   intervalMatches: IntervalMatch[];
   chordMatches: ChordMatch[];
+  notationPreference: NotationPreference;
 };
 
 export function DetectedResults({
   uniquePitchClasses,
   intervalMatches,
   chordMatches,
+  notationPreference,
 }: DetectedResultsProps) {
   const helperMessageClassName = "text-sm text-slate-600";
 
@@ -29,10 +31,17 @@ export function DetectedResults({
               key={`${match.symbol}-${match.notes.join("-")}`}
               className="rounded-xl border border-slate-200 bg-slate-50 p-4 transition-all duration-300 ease-out starting:translate-y-2 starting:opacity-0"
             >
-              <p className="text-base font-semibold text-slate-900">{formatMusicText(match.symbol)}</p>
-              <p className="mt-1 text-sm text-slate-700">{formatMusicText(match.name)}</p>
+              <p className="text-base font-semibold text-slate-900">
+                {formatMusicText(match.symbol, notationPreference)}
+              </p>
+              <p className="mt-1 text-sm text-slate-700">
+                {formatMusicText(match.name, notationPreference)}
+              </p>
               <p className="mt-1 text-xs text-slate-500">
-                Notes: {match.notes.map(formatMusicText).join(", ")}
+                Notes:{" "}
+                {match.notes
+                  .map((note) => formatMusicText(note, notationPreference))
+                  .join(", ")}
               </p>
             </article>
           ))}
@@ -50,12 +59,17 @@ export function DetectedResults({
               className="rounded-xl border border-slate-200 bg-slate-50 p-4 transition-all duration-300 ease-out starting:translate-y-2 starting:opacity-0"
             >
               <p className="text-base font-semibold text-slate-900">
-                {formatMusicText(match.slashSymbol ?? match.symbol)}
+                {formatMusicText(match.slashSymbol ?? match.symbol, notationPreference)}
               </p>
-              <p className="mt-1 text-sm text-slate-700">{formatMusicText(match.name)}</p>
+              <p className="mt-1 text-sm text-slate-700">
+                {formatMusicText(match.name, notationPreference)}
+              </p>
               <p className="mt-1 text-sm text-slate-600">{match.inversionLabel}</p>
               <p className="mt-1 text-xs text-slate-500">
-                Notes: {match.notes.map(formatMusicText).join(", ")}
+                Notes:{" "}
+                {match.notes
+                  .map((note) => formatMusicText(note, notationPreference))
+                  .join(", ")}
               </p>
             </article>
           ))}

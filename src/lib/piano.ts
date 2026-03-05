@@ -14,6 +14,7 @@ export const NOTE_SEQUENCE = [
 ] as const;
 
 export type PitchClass = (typeof NOTE_SEQUENCE)[number];
+export type NotationPreference = "sharps" | "flats";
 export type PianoKey = {
   note: PitchClass;
   octave: number;
@@ -41,6 +42,21 @@ const FLAT_TO_SHARP: Record<string, PitchClass> = {
   Gb: "F#",
   Ab: "G#",
   Bb: "A#",
+};
+
+const SHARP_TO_FLAT_DISPLAY: Record<PitchClass, string> = {
+  C: "C",
+  "C#": "Db",
+  D: "D",
+  "D#": "Eb",
+  E: "E",
+  F: "F",
+  "F#": "Gb",
+  G: "G",
+  "G#": "Ab",
+  A: "A",
+  "A#": "Bb",
+  B: "B",
 };
 
 export type ParsedKeyId = {
@@ -124,6 +140,25 @@ export function buildPianoKeys(startOctave: number, endOctave: number): PianoKey
   return keys;
 }
 
-export function formatMusicText(value: string): string {
-  return value.replaceAll("#", "♯").replaceAll("b", "♭");
+export function applyNotationPreference(
+  value: string,
+  notationPreference: NotationPreference = "sharps",
+): string {
+  if (notationPreference === "sharps") {
+    return value;
+  }
+
+  return value.replaceAll(
+    /C#|D#|F#|G#|A#/g,
+    (note) => SHARP_TO_FLAT_DISPLAY[note as PitchClass],
+  );
+}
+
+export function formatMusicText(
+  value: string,
+  notationPreference: NotationPreference = "sharps",
+): string {
+  return applyNotationPreference(value, notationPreference)
+    .replaceAll("#", "♯")
+    .replaceAll("b", "♭");
 }
