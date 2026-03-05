@@ -50,6 +50,10 @@ describe("detectIntervals", () => {
     ]);
   });
 
+  it("does not label mixed three-note selections as a single interval", () => {
+    expect(detectIntervals(["A4", "F5", "A5"])).toEqual([]);
+  });
+
   it("labels compound tritones distinctly", () => {
     expect(detectIntervals(["C4", "F#5"])).toEqual([
       {

@@ -224,6 +224,12 @@ export function detectIntervals(selectedKeyIds: string[]): IntervalMatch[] {
     ];
   }
 
+  // For mixed pitch classes, only label a single interval when exactly two keys are selected.
+  // Otherwise, reducing to lowest/highest can hide additional selected tones.
+  if (parsedSorted.length > 2) {
+    return [];
+  }
+
   if (uniquePitchClasses.length > 2) {
     return [];
   }
