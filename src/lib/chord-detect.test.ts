@@ -6,6 +6,17 @@ describe("detectIntervals", () => {
     expect(detectIntervals(["C4"])) .toEqual([]);
   });
 
+  it("detects simple intervals between two unique notes", () => {
+    expect(detectIntervals(["C4", "E4"])).toEqual([
+      {
+        name: "Major 3rd",
+        symbol: "M3",
+        semitones: 4,
+        notes: ["C", "E"],
+      },
+    ]);
+  });
+
   it("detects octave when only one unique pitch class is present", () => {
     expect(detectIntervals(["C4", "C5"])).toEqual([
       {
@@ -24,6 +35,28 @@ describe("detectIntervals", () => {
         symbol: "P12 (compound of P5)",
         semitones: 19,
         notes: ["C", "G"],
+      },
+    ]);
+  });
+
+  it("collapses repeated pitch classes across multiple octaves to octave", () => {
+    expect(detectIntervals(["C4", "C6"])).toEqual([
+      {
+        name: "Octave",
+        symbol: "P8",
+        semitones: 12,
+        notes: ["C", "C"],
+      },
+    ]);
+  });
+
+  it("labels compound tritones distinctly", () => {
+    expect(detectIntervals(["C4", "F#5"])).toEqual([
+      {
+        name: "Compound Tritone",
+        symbol: "TT (compound of TT)",
+        semitones: 18,
+        notes: ["C", "F#"],
       },
     ]);
   });
@@ -77,8 +110,34 @@ describe("detectChords", () => {
     });
   });
 
+  it("allows seventh chord matches with omitted sevenths", () => {
+    const matches = detectChords(["D4", "F#4", "A4"]);
+
+    expect(matches).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          symbol: "D7",
+          slashSymbol: null,
+          inversionLabel: "Root position",
+          partialOmission: "seventh",
+        }),
+      ]),
+    );
+  });
+
   it("keeps triads strict when the fifth is omitted", () => {
     expect(detectChords(["C4", "E4", "C5"])).toEqual([]);
+  });
+
+  it("detects second inversion slash notation from bass note", () => {
+    const [match] = detectChords(["G3", "C4", "E4"]);
+
+    expect(match).toMatchObject({
+      symbol: "C",
+      slashSymbol: "C/G",
+      inversionLabel: "2nd inversion",
+      bass: "G",
+    });
   });
 
   it("prefers full seventh voicings over omitted-fifth matches", () => {
@@ -86,6 +145,54 @@ describe("detectChords", () => {
 
     expect(match).toMatchObject({
       symbol: "D7",
+      slashSymbol: null,
+      inversionLabel: "Root position",
+      partialOmission: null,
+    });
+  });
+
+  it("supports nine chords voiced without the fifth", () => {
+    const matches = detectChords(["C4", "D4", "E4", "B4"]);
+
+    expect(matches).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          symbol: "Cmaj9",
+          slashSymbol: null,
+          inversionLabel: "Root position",
+          partialOmission: "fifth",
+        }),
+      ]),
+    );
+  });
+
+  it("keeps root-bass matches ranked above slash alternatives", () => {
+    const [first] = detectChords(["C3", "E4", "G4", "A4"]);
+
+    expect(first).toMatchObject({
+      symbol: "C6",
+      slashSymbol: null,
+      inversionLabel: "Root position",
+      partialOmission: null,
+    });
+  });
+
+  it("ignores duplicate octaves and still detects the same chord", () => {
+    const [match] = detectChords(["C3", "C4", "E4", "G4"]);
+
+    expect(match).toMatchObject({
+      symbol: "C",
+      slashSymbol: null,
+      inversionLabel: "Root position",
+      partialOmission: null,
+    });
+  });
+
+  it("ignores invalid key IDs when valid notes still form a chord", () => {
+    const [match] = detectChords(["C4", "E4", "G4", "bad"]);
+
+    expect(match).toMatchObject({
+      symbol: "C",
       slashSymbol: null,
       inversionLabel: "Root position",
       partialOmission: null,

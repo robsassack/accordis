@@ -7,11 +7,23 @@ export type ChordQuality =
   | "augmented"
   | "suspended2"
   | "suspended4"
+  | "suspendedDominant7"
+  | "major6"
+  | "minor6"
+  | "majorAdd9"
+  | "minorAdd9"
   | "dominant7"
+  | "dominant7Flat5"
+  | "dominant7Sharp5"
   | "major7"
+  | "minorMajor7"
   | "minor7"
   | "halfDiminished7"
-  | "diminished7";
+  | "diminished7"
+  | "dominant9"
+  | "major9"
+  | "minor9"
+  | "major6Add9";
 
 export type ChordMatch = {
   name: string;

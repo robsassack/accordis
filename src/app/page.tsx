@@ -15,24 +15,18 @@ const PIANO_KEYS = buildPianoKeys(4, 5);
 const NOTATION_STORAGE_KEY = "accordis-notation-preference";
 const DEFAULT_NOTATION_PREFERENCE: NotationPreference = "sharps";
 
-function getInitialNotationPreference(): NotationPreference {
-  if (typeof window === "undefined") {
-    return DEFAULT_NOTATION_PREFERENCE;
-  }
-
-  const storedPreference = window.localStorage.getItem(NOTATION_STORAGE_KEY);
-  if (storedPreference === "sharps" || storedPreference === "flats") {
-    return storedPreference;
-  }
-
-  return DEFAULT_NOTATION_PREFERENCE;
-}
-
 export default function Home() {
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
   const [notationPreference, setNotationPreference] = useState<NotationPreference>(
-    getInitialNotationPreference,
+    DEFAULT_NOTATION_PREFERENCE,
   );
+
+  useEffect(() => {
+    const storedPreference = window.localStorage.getItem(NOTATION_STORAGE_KEY);
+    if (storedPreference === "sharps" || storedPreference === "flats") {
+      setNotationPreference(storedPreference);
+    }
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(NOTATION_STORAGE_KEY, notationPreference);

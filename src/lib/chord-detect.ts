@@ -17,6 +17,10 @@ type ChordTemplate = {
   rank: number;
 };
 
+// Supported chord types (non-advanced mode):
+// Major, Minor, Diminished, Augmented, Suspended 2, Suspended 4, 7sus4,
+// 6, m6, add9, madd9, Dominant 7, 7b5, 7#5, Major 7, m(maj7), Minor 7,
+// Half-diminished 7, Diminished 7, 9, maj9, m9, 6add9
 const CHORD_TEMPLATES: ChordTemplate[] = [
   { quality: "major", label: "Major", suffix: "", intervals: [0, 4, 7], rank: 1 },
   { quality: "minor", label: "Minor", suffix: "m", intervals: [0, 3, 7], rank: 1 },
@@ -24,8 +28,46 @@ const CHORD_TEMPLATES: ChordTemplate[] = [
   { quality: "augmented", label: "Augmented", suffix: "aug", intervals: [0, 4, 8], rank: 2 },
   { quality: "suspended2", label: "Suspended 2", suffix: "sus2", intervals: [0, 2, 7], rank: 3 },
   { quality: "suspended4", label: "Suspended 4", suffix: "sus4", intervals: [0, 5, 7], rank: 3 },
+  {
+    quality: "suspendedDominant7",
+    label: "7th Suspended 4",
+    suffix: "7sus4",
+    intervals: [0, 5, 7, 10],
+    rank: 4,
+  },
+  { quality: "major6", label: "6th", suffix: "6", intervals: [0, 4, 7, 9], rank: 3 },
+  { quality: "minor6", label: "Minor 6th", suffix: "m6", intervals: [0, 3, 7, 9], rank: 3 },
+  { quality: "majorAdd9", label: "Add 9", suffix: "add9", intervals: [0, 2, 4, 7], rank: 3 },
+  {
+    quality: "minorAdd9",
+    label: "Minor Add 9",
+    suffix: "madd9",
+    intervals: [0, 2, 3, 7],
+    rank: 3,
+  },
   { quality: "dominant7", label: "Dominant 7", suffix: "7", intervals: [0, 4, 7, 10], rank: 4 },
+  {
+    quality: "dominant7Flat5",
+    label: "7th Flat 5",
+    suffix: "7b5",
+    intervals: [0, 4, 6, 10],
+    rank: 5,
+  },
+  {
+    quality: "dominant7Sharp5",
+    label: "7th Sharp 5",
+    suffix: "7#5",
+    intervals: [0, 4, 8, 10],
+    rank: 5,
+  },
   { quality: "major7", label: "Major 7", suffix: "maj7", intervals: [0, 4, 7, 11], rank: 4 },
+  {
+    quality: "minorMajor7",
+    label: "Minor Major 7",
+    suffix: "m(maj7)",
+    intervals: [0, 3, 7, 11],
+    rank: 5,
+  },
   { quality: "minor7", label: "Minor 7", suffix: "m7", intervals: [0, 3, 7, 10], rank: 4 },
   {
     quality: "halfDiminished7",
@@ -40,6 +82,16 @@ const CHORD_TEMPLATES: ChordTemplate[] = [
     suffix: "dim7",
     intervals: [0, 3, 6, 9],
     rank: 5,
+  },
+  { quality: "dominant9", label: "9th", suffix: "9", intervals: [0, 2, 4, 7, 10], rank: 6 },
+  { quality: "major9", label: "Major 9", suffix: "maj9", intervals: [0, 2, 4, 7, 11], rank: 6 },
+  { quality: "minor9", label: "Minor 9", suffix: "m9", intervals: [0, 2, 3, 7, 10], rank: 6 },
+  {
+    quality: "major6Add9",
+    label: "6th Add 9",
+    suffix: "6add9",
+    intervals: [0, 2, 4, 7, 9],
+    rank: 6,
   },
 ];
 
@@ -147,15 +199,7 @@ function buildInversionLabel(intervals: number[], bassInterval: number): string 
     return "Root position";
   }
 
-  if (index === 1) {
-    return "1st inversion";
-  }
-
-  if (index === 2) {
-    return "2nd inversion";
-  }
-
-  return "3rd inversion";
+  return `${toOrdinal(index)} inversion`;
 }
 
 export function detectIntervals(selectedKeyIds: string[]): IntervalMatch[] {
@@ -215,23 +259,39 @@ export function detectChords(selectedKeyIds: string[]): ChordMatch[] {
 
   const bassIndex = pitchClassToIndex(bassPitchClass);
   const matches: Array<ChordMatch & { score: number }> = [];
-  const FIFTH_INTERVAL_INDEX = 2;
+  const FIFTH_INTERVAL = 7;
+  const SEVENTH_INTERVAL_INDEX = 3;
 
   for (let rootIndex = 0; rootIndex < 12; rootIndex += 1) {
     for (const template of CHORD_TEMPLATES) {
       let isMatch = false;
-      let omittedFifth = false;
+      let partialOmission: ChordMatch["partialOmission"] = null;
 
       if (template.intervals.length === selectedSet.size) {
         const fullChordSet = buildChordSet(rootIndex, template.intervals);
         isMatch = setsEqual(selectedSet, fullChordSet);
       } else if (template.intervals.length === 4 && selectedSet.size === 3) {
         // Common jazz/pop voicing: seventh chords with omitted fifth.
-        const fifthInterval = template.intervals[FIFTH_INTERVAL_INDEX];
-        const intervalsWithoutFifth = setWithoutInterval(template.intervals, fifthInterval);
+        const intervalsWithoutFifth = setWithoutInterval(template.intervals, FIFTH_INTERVAL);
         const noFifthSet = buildChordSet(rootIndex, intervalsWithoutFifth);
         isMatch = setsEqual(selectedSet, noFifthSet);
-        omittedFifth = isMatch;
+
+        if (isMatch) {
+          partialOmission = "fifth";
+        } else {
+          // Also allow seventh chords voiced without the seventh.
+          const seventhInterval = template.intervals[SEVENTH_INTERVAL_INDEX];
+          const intervalsWithoutSeventh = setWithoutInterval(template.intervals, seventhInterval);
+          const noSeventhSet = buildChordSet(rootIndex, intervalsWithoutSeventh);
+          isMatch = setsEqual(selectedSet, noSeventhSet);
+          partialOmission = isMatch ? "seventh" : null;
+        }
+      } else if (template.intervals.length === 5 && selectedSet.size === 4) {
+        // Extended chords are often voiced without the fifth.
+        const intervalsWithoutFifth = setWithoutInterval(template.intervals, FIFTH_INTERVAL);
+        const noFifthSet = buildChordSet(rootIndex, intervalsWithoutFifth);
+        isMatch = setsEqual(selectedSet, noFifthSet);
+        partialOmission = isMatch ? "fifth" : null;
       }
 
       if (!isMatch) {
@@ -250,7 +310,7 @@ export function detectChords(selectedKeyIds: string[]): ChordMatch[] {
       const symbol = `${root}${template.suffix}`;
       const slashSymbol = bassPitchClass === root ? null : `${symbol}/${bassPitchClass}`;
       const name = `${root} ${template.label}`;
-      const score = (bassPitchClass === root ? 0 : 8) + template.rank + (omittedFifth ? 2 : 0);
+      const score = (bassPitchClass === root ? 0 : 8) + template.rank + (partialOmission ? 2 : 0);
 
       matches.push({
         name,
@@ -261,7 +321,7 @@ export function detectChords(selectedKeyIds: string[]): ChordMatch[] {
         inversionLabel,
         bass: bassPitchClass,
         slashSymbol,
-        partialOmission: omittedFifth ? "fifth" : null,
+        partialOmission,
         score,
       });
     }
