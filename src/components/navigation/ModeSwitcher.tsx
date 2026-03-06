@@ -2,7 +2,7 @@ import Link from "next/link";
 
 type ModeSwitcherProps = {
   activeMode: "detect" | "library";
-  libraryHref?: "/library/scales" | "/library/chords";
+  libraryHref?: string;
 };
 
 export function ModeSwitcher({ activeMode, libraryHref = "/library/scales" }: ModeSwitcherProps) {

@@ -406,6 +406,7 @@ describe("Detect workspace route", () => {
     expect(playButton).toBeEnabled();
 
     await user.click(playButton);
+    expect(playButton).toBeDisabled();
 
     await waitFor(() => {
       expect(toneMockState.start).toHaveBeenCalledTimes(1);

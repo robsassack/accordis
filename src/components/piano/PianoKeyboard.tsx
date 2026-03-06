@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { formatMusicText, type NotationPreference, type PianoKey } from "@/lib/piano";
 
 type PianoKeyboardProps = {
@@ -23,21 +23,55 @@ export function PianoKeyboard({
   blackKeyGapReductionPx = 2.5,
 }: PianoKeyboardProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const showScrollHintRef = useRef(true);
   const [showLeftFade, setShowLeftFade] = useState(false);
   const [showRightFade, setShowRightFade] = useState(false);
   const [showScrollHint, setShowScrollHint] = useState(true);
-  const whiteKeys = keys.filter((key) => !key.isSharp);
-  const blackKeys = keys
-    .map((key, index) => ({ key, index }))
-    .filter(({ key }) => key.isSharp);
-  const whiteKeyCount = whiteKeys.length;
-  const mobileRightMaskStyle =
-    showRightFade
-      ? {
-          WebkitMaskImage: "linear-gradient(to right, black 0%, black calc(100% - 24px), transparent 100%)",
-          maskImage: "linear-gradient(to right, black 0%, black calc(100% - 24px), transparent 100%)",
-        }
-      : undefined;
+  const selectedKeySet = useMemo(() => new Set(selectedKeys), [selectedKeys]);
+  const whiteKeys = useMemo(() => keys.filter((key) => !key.isSharp), [keys]);
+  const blackKeys = useMemo(() => {
+    const whiteKeyCount = whiteKeys.length;
+    const whiteKeyWidth = 100 / whiteKeyCount;
+    const positionedBlackKeys: Array<{ key: PianoKey; left: number }> = [];
+    let whiteKeysBefore = 0;
+
+    for (const key of keys) {
+      if (key.isSharp) {
+        const center = whiteKeysBefore * whiteKeyWidth;
+        const left = center - blackKeyWidthPercent / 2;
+        positionedBlackKeys.push({ key, left });
+        continue;
+      }
+
+      whiteKeysBefore += 1;
+    }
+
+    return positionedBlackKeys;
+  }, [blackKeyWidthPercent, keys, whiteKeys.length]);
+  const formattedKeyLabels = useMemo(
+    () =>
+      new Map(
+        keys.map((key) => [
+          `${key.note}${key.octave}`,
+          formatMusicText(`${key.note}${key.octave}`, notationPreference),
+        ]),
+      ),
+    [keys, notationPreference],
+  );
+  const mobileRightMaskStyle = useMemo(
+    () =>
+      showRightFade
+        ? {
+            WebkitMaskImage: "linear-gradient(to right, black 0%, black calc(100% - 24px), transparent 100%)",
+            maskImage: "linear-gradient(to right, black 0%, black calc(100% - 24px), transparent 100%)",
+          }
+        : undefined,
+    [showRightFade],
+  );
+
+  useEffect(() => {
+    showScrollHintRef.current = showScrollHint;
+  }, [showScrollHint]);
 
   useEffect(() => {
     const container = scrollContainerRef.current;
@@ -56,7 +90,8 @@ export function PianoKeyboard({
       setShowLeftFade(currentContainer.scrollLeft > edgeTolerancePx);
       setShowRightFade(currentContainer.scrollLeft < maxScrollLeft - edgeTolerancePx);
 
-      if (currentContainer.scrollLeft > 8 && showScrollHint) {
+      if (currentContainer.scrollLeft > 8 && showScrollHintRef.current) {
+        showScrollHintRef.current = false;
         setShowScrollHint(false);
       }
     }
@@ -69,7 +104,7 @@ export function PianoKeyboard({
       container.removeEventListener("scroll", updateFadeVisibility);
       window.removeEventListener("resize", updateFadeVisibility);
     };
-  }, [keys.length, showScrollHint]);
+  }, [keys.length]);
 
   return (
     <div className="relative pb-2">
@@ -96,7 +131,7 @@ export function PianoKeyboard({
           <div className="absolute inset-x-0 bottom-0 flex h-44 sm:h-55">
             {whiteKeys.map((key) => {
               const id = `${key.note}${key.octave}`;
-              const isSelected = selectedKeys.includes(id);
+              const isSelected = selectedKeySet.has(id);
               const isPrimaryMissing = primaryMissingKeyId === id;
               const isSecondaryMissing = secondaryMissingKeyId === id;
               const isMissing = isPrimaryMissing || isSecondaryMissing;
@@ -119,28 +154,22 @@ export function PianoKeyboard({
                         ? "bg-amber-100 text-amber-700 ring-1 ring-inset ring-amber-300 dark:bg-amber-900/30 dark:text-amber-300 dark:ring-amber-700"
                       : "bg-white text-slate-700 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                   }`}
-                  aria-label={`Select ${formatMusicText(id, notationPreference)}`}
+                  aria-label={`Select ${formattedKeyLabels.get(id)}`}
                 >
                   <span className="absolute bottom-3 left-1/2 -translate-x-1/2">
-                    {formatMusicText(id, notationPreference)}
+                    {formattedKeyLabels.get(id)}
                   </span>
                 </button>
               );
             })}
           </div>
 
-          {blackKeys.map(({ key, index }) => {
+          {blackKeys.map(({ key, left }) => {
             const id = `${key.note}${key.octave}`;
-            const isSelected = selectedKeys.includes(id);
+            const isSelected = selectedKeySet.has(id);
             const isPrimaryMissing = primaryMissingKeyId === id;
             const isSecondaryMissing = secondaryMissingKeyId === id;
             const isMissing = isPrimaryMissing || isSecondaryMissing;
-            const whiteKeysBefore = keys
-              .slice(0, index)
-              .filter((pianoKey) => !pianoKey.isSharp).length;
-            const whiteKeyWidth = 100 / whiteKeyCount;
-            const center = whiteKeysBefore * whiteKeyWidth;
-            const left = center - blackKeyWidthPercent / 2;
 
             return (
               <button
@@ -164,10 +193,10 @@ export function PianoKeyboard({
                   left: `calc(${left}% - ${blackKeyGapReductionPx}px)`,
                   width: `calc(${blackKeyWidthPercent}% + ${blackKeyGapReductionPx * 2}px)`,
                 }}
-                aria-label={`Select ${formatMusicText(id, notationPreference)}`}
+                aria-label={`Select ${formattedKeyLabels.get(id)}`}
               >
                 <span className="mt-20 inline-block sm:mt-24">
-                  {formatMusicText(id, notationPreference)}
+                  {formattedKeyLabels.get(id)}
                 </span>
               </button>
             );

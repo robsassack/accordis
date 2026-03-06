@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ScaleLibraryWorkspace } from "@/components/library/ScaleLibraryWorkspace";
 
 type LibraryContentProps = {
   activeSection: "scales" | "chords";
@@ -30,9 +31,13 @@ export function LibraryContent({ activeSection }: LibraryContentProps) {
         </Link>
       </nav>
 
-      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-950/50 dark:text-slate-300">
-        {activeSection === "scales" ? "Scale library UI coming next." : "Chord library UI coming next."}
-      </div>
+      {activeSection === "scales" ? (
+        <ScaleLibraryWorkspace />
+      ) : (
+        <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-950/50 dark:text-slate-300">
+          Chord library UI coming next.
+        </div>
+      )}
     </div>
   );
 }

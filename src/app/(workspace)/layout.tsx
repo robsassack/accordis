@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { ChordAudioProvider } from "@/components/audio/ChordAudioProvider";
+import { ScaleAudioProvider } from "@/components/audio/ScaleAudioProvider";
 import { DetectSessionProvider } from "@/components/detect/DetectSessionProvider";
 import { MidiSessionProvider } from "@/components/detect/MidiSessionProvider";
 import { AppShell } from "@/components/layout/AppShell";
@@ -10,30 +11,25 @@ import { AppShell } from "@/components/layout/AppShell";
 export default function WorkspaceLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const activeMode = pathname.startsWith("/library") ? "library" : "detect";
-  const [lastLibraryHref, setLastLibraryHref] = useState<"/library/scales" | "/library/chords">(
-    "/library/scales",
-  );
+  const [lastLibraryHref, setLastLibraryHref] = useState("/library/scales");
 
   useEffect(() => {
-    if (pathname.startsWith("/library/chords")) {
-      setLastLibraryHref("/library/chords");
-      return;
-    }
-
-    if (pathname.startsWith("/library/scales")) {
-      setLastLibraryHref("/library/scales");
+    if (pathname.startsWith("/library/")) {
+      setLastLibraryHref(pathname);
     }
   }, [pathname]);
 
   return (
     <ChordAudioProvider>
-      <DetectSessionProvider>
-        <MidiSessionProvider>
-          <AppShell activeMode={activeMode} libraryHref={lastLibraryHref}>
-            {children}
-          </AppShell>
-        </MidiSessionProvider>
-      </DetectSessionProvider>
+      <ScaleAudioProvider>
+        <DetectSessionProvider>
+          <MidiSessionProvider>
+            <AppShell activeMode={activeMode} libraryHref={lastLibraryHref}>
+              {children}
+            </AppShell>
+          </MidiSessionProvider>
+        </DetectSessionProvider>
+      </ScaleAudioProvider>
     </ChordAudioProvider>
   );
 }
