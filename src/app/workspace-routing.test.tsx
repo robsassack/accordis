@@ -149,6 +149,57 @@ describe("Workspace routing persistence", () => {
     });
   });
 
+  it("keeps persisted tempo and direction when loading a per-scale path", async () => {
+    localStorage.setItem(
+      "accordis-scale-library-session",
+      JSON.stringify({
+        selectedRoot: "C",
+        selectedScaleId: "major",
+        rootNotationPreference: "sharps",
+        tempoBpm: 120,
+        playbackDirection: "descending",
+      }),
+    );
+    pathnameState.current = "/library/scales/d-sharp/mixolydian";
+    render(<WorkspaceHarness />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "D♯ Mixolydian" })).toBeInTheDocument();
+    });
+    expect(screen.getByRole("combobox", { name: "Scale playback direction" })).toHaveValue("descending");
+    expect(screen.getByRole("slider", { name: "Scale playback tempo" })).toHaveValue("120");
+  });
+
+  it("scrolls selected scale into view when loading a per-scale path without saved list scroll", async () => {
+    const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
+    const scrollIntoViewMock = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      writable: true,
+      value: scrollIntoViewMock,
+    });
+
+    try {
+      pathnameState.current = "/library/scales/c/diminishedWholeHalf";
+      render(<WorkspaceHarness />);
+
+      await waitFor(() => {
+        expect(screen.getByRole("heading", { name: "C Diminished (Whole-Half)" })).toBeInTheDocument();
+      });
+      expect(scrollIntoViewMock).toHaveBeenCalled();
+    } finally {
+      if (typeof originalScrollIntoView === "function") {
+        Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+          configurable: true,
+          writable: true,
+          value: originalScrollIntoView,
+        });
+      } else {
+        delete (HTMLElement.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+      }
+    }
+  });
+
   it("keeps the scale list scroll position after selecting a scale route", async () => {
     const user = userEvent.setup();
     pathnameState.current = "/library/scales";

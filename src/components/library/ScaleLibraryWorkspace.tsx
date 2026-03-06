@@ -137,13 +137,14 @@ export function ScaleLibraryWorkspace() {
   const pathname = usePathname();
   const router = useRouter();
   const scaleSelectionFromPath = useMemo(() => parseScaleLibraryPath(pathname), [pathname]);
+  const persistedScaleLibrarySession = scaleLibrarySessionCache ?? getInitialScaleLibrarySession();
   const initialScaleLibrarySession = scaleSelectionFromPath
     ? {
-        ...getDefaultScaleLibrarySession(),
+        ...persistedScaleLibrarySession,
         selectedRoot: scaleSelectionFromPath.root,
         selectedScaleId: scaleSelectionFromPath.scaleId,
       }
-    : (scaleLibrarySessionCache ?? getInitialScaleLibrarySession());
+    : persistedScaleLibrarySession;
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRoot, setSelectedRoot] = useState<PitchClass>(initialScaleLibrarySession.selectedRoot);
   const [selectedScaleId, setSelectedScaleId] = useState<ScaleId>(
@@ -157,6 +158,7 @@ export function ScaleLibraryWorkspace() {
     initialScaleLibrarySession.playbackDirection,
   );
   const scaleListRef = useRef<HTMLDivElement>(null);
+  const selectedScaleOptionRef = useRef<HTMLButtonElement | null>(null);
   const activeSelectedRoot = scaleSelectionFromPath?.root ?? selectedRoot;
   const activeSelectedScaleId = scaleSelectionFromPath?.scaleId ?? selectedScaleId;
   const selectedScaleDefinition = getScaleDefinitionById(activeSelectedScaleId);
@@ -277,6 +279,21 @@ export function ScaleLibraryWorkspace() {
     scaleList.scrollTop = scaleLibraryListScrollTopCache;
   }, [pathname]);
 
+  useLayoutEffect(() => {
+    const scaleList = scaleListRef.current;
+    if (!scaleList || !scaleSelectionFromPath || scaleLibraryListScrollTopCache > 0) {
+      return;
+    }
+
+    const selectedScaleOption = selectedScaleOptionRef.current;
+    if (!selectedScaleOption || typeof selectedScaleOption.scrollIntoView !== "function") {
+      return;
+    }
+
+    selectedScaleOption.scrollIntoView({ block: "center" });
+    scaleLibraryListScrollTopCache = scaleList.scrollTop;
+  }, [activeSelectedScaleId, activeSelectedRoot, pathname, scaleSelectionFromPath]);
+
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(17rem,22rem)_1fr]">
       <section className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/40">
@@ -386,6 +403,11 @@ export function ScaleLibraryWorkspace() {
                   return (
                     <button
                       key={`${activeSelectedRoot}-${scaleDefinition.id}`}
+                      ref={(node) => {
+                        if (isSelected) {
+                          selectedScaleOptionRef.current = node;
+                        }
+                      }}
                       type="button"
                       role="option"
                       aria-label={`Select ${selectedRootText} ${scaleDefinition.name} scale`}
