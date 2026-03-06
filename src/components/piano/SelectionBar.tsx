@@ -75,7 +75,7 @@ export function SelectionBar({
             onClick={() => onNotationPreferenceChange("sharps")}
             aria-label="Use sharps notation"
             aria-pressed={isSharps}
-            className={`relative z-10 h-full min-w-8 rounded-full px-3 text-xs font-semibold transition-colors duration-200 ${
+            className={`relative z-10 h-full min-w-8 rounded-full px-3 text-base leading-none font-semibold transition-colors duration-200 ${
               isSharps ? "text-white dark:text-slate-900" : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
             }`}
           >
@@ -86,7 +86,7 @@ export function SelectionBar({
             onClick={() => onNotationPreferenceChange("flats")}
             aria-label="Use flats notation"
             aria-pressed={!isSharps}
-            className={`relative z-10 h-full min-w-8 rounded-full px-3 text-xs font-semibold transition-colors duration-200 ${
+            className={`relative z-10 h-full min-w-8 rounded-full px-3 text-base leading-none font-semibold transition-colors duration-200 ${
               !isSharps ? "text-white dark:text-slate-900" : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
             }`}
           >
