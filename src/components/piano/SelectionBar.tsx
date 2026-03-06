@@ -1,10 +1,12 @@
-import { faArrowRotateLeft } from "@fortawesome/free-solid-svg-icons";
+import { faArrowRotateLeft, faPlay } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { formatMusicText, type NotationPreference } from "@/lib/piano";
 
 type SelectionBarProps = {
   selectedKeys: string[];
   onClear: () => void;
+  onPlayChord: () => void;
+  isPlayActive: boolean;
   notationPreference: NotationPreference;
   onNotationPreferenceChange: (notationPreference: NotationPreference) => void;
   midiEnabled: boolean;
@@ -15,6 +17,8 @@ type SelectionBarProps = {
 export function SelectionBar({
   selectedKeys,
   onClear,
+  onPlayChord,
+  isPlayActive,
   notationPreference,
   onNotationPreferenceChange,
   midiEnabled,
@@ -23,6 +27,9 @@ export function SelectionBar({
 }: SelectionBarProps) {
   const hasSelectedKeys = selectedKeys.length > 0;
   const isSharps = notationPreference === "sharps";
+  const toggleNotationPreference = () => {
+    onNotationPreferenceChange(isSharps ? "flats" : "sharps");
+  };
   const midiButtonLabel = midiEnabled ? "Disable MIDI" : "Enable MIDI";
   const currentSelectionText = hasSelectedKeys
     ? selectedKeys.map((key) => formatMusicText(key, notationPreference)).join(", ")
@@ -63,36 +70,50 @@ export function SelectionBar({
           </svg>
           <span className="whitespace-nowrap">{midiButtonLabel}</span>
         </button>
-        <div className="relative inline-flex h-8 rounded-full border border-slate-300 bg-white p-0.5 dark:border-slate-700 dark:bg-slate-900">
+        <button
+          type="button"
+          onClick={onPlayChord}
+          aria-label="Play selected chord"
+          disabled={!hasSelectedKeys}
+          className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-xs leading-none font-semibold transition-colors duration-200 ${
+            hasSelectedKeys && isPlayActive
+              ? "border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200"
+              : hasSelectedKeys
+              ? "border-slate-300 bg-white text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+              : "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-600"
+          }`}
+        >
+          <FontAwesomeIcon icon={faPlay} className="h-3 w-3" />
+        </button>
+        <button
+          type="button"
+          onClick={toggleNotationPreference}
+          aria-label={`Switch to ${isSharps ? "flats" : "sharps"} notation`}
+          className="relative inline-flex h-8 cursor-pointer items-center rounded-full border border-slate-300 bg-white p-0.5 dark:border-slate-700 dark:bg-slate-900"
+        >
           <span
             aria-hidden="true"
             className={`absolute inset-y-0.5 w-[calc(50%-2px)] rounded-full bg-slate-900 shadow-sm transition-transform duration-200 ease-out dark:bg-slate-100 ${
               isSharps ? "translate-x-0" : "translate-x-full"
             }`}
           />
-          <button
-            type="button"
-            onClick={() => onNotationPreferenceChange("sharps")}
-            aria-label="Use sharps notation"
-            aria-pressed={isSharps}
-            className={`relative z-10 h-full min-w-8 rounded-full px-3 text-base leading-none font-semibold transition-colors duration-200 ${
+          <span
+            aria-hidden="true"
+            className={`relative z-10 inline-flex h-full min-w-8 items-center justify-center rounded-full px-3 text-base leading-none font-semibold transition-colors duration-200 ${
               isSharps ? "text-white dark:text-slate-900" : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
             }`}
           >
             ♯
-          </button>
-          <button
-            type="button"
-            onClick={() => onNotationPreferenceChange("flats")}
-            aria-label="Use flats notation"
-            aria-pressed={!isSharps}
-            className={`relative z-10 h-full min-w-8 rounded-full px-3 text-base leading-none font-semibold transition-colors duration-200 ${
+          </span>
+          <span
+            aria-hidden="true"
+            className={`relative z-10 inline-flex h-full min-w-8 items-center justify-center rounded-full px-3 text-base leading-none font-semibold transition-colors duration-200 ${
               !isSharps ? "text-white dark:text-slate-900" : "text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
             }`}
           >
             ♭
-          </button>
-        </div>
+          </span>
+        </button>
         <button
           type="button"
           onClick={onClear}

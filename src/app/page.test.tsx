@@ -57,7 +57,7 @@ describe("Home page", () => {
     expect(screen.getByText("C♯ Major")).toBeInTheDocument();
     expect(screen.getByText("Current: C♯4, F4, G♯4")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Use flats notation" }));
+    await user.click(screen.getByRole("button", { name: "Switch to flats notation" }));
 
     expect(screen.getByText("D♭ Major")).toBeInTheDocument();
     expect(screen.getByText("Current: D♭4, F4, A♭4")).toBeInTheDocument();
