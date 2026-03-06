@@ -1,13 +1,101 @@
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const toneMockState = vi.hoisted(() => {
+  const samplerInstances: Array<{
+    connect: ReturnType<typeof vi.fn>;
+    releaseAll: ReturnType<typeof vi.fn>;
+    triggerAttackRelease: ReturnType<typeof vi.fn>;
+    dispose: ReturnType<typeof vi.fn>;
+  }> = [];
+  const filterInstances: Array<{
+    numberOfOutputs: number;
+    connect: ReturnType<typeof vi.fn>;
+    disconnect: ReturnType<typeof vi.fn>;
+    dispose: ReturnType<typeof vi.fn>;
+  }> = [];
+  const volumeInstances: Array<{
+    connect: ReturnType<typeof vi.fn>;
+    toDestination: ReturnType<typeof vi.fn>;
+    dispose: ReturnType<typeof vi.fn>;
+  }> = [];
+
+  class MockSampler {
+    connect = vi.fn();
+    releaseAll = vi.fn();
+    triggerAttackRelease = vi.fn();
+    dispose = vi.fn();
+
+    constructor() {
+      samplerInstances.push(this);
+    }
+  }
+
+  class MockFilter {
+    numberOfOutputs = 1;
+    connect = vi.fn();
+    disconnect = vi.fn();
+    dispose = vi.fn();
+
+    constructor() {
+      filterInstances.push(this);
+    }
+  }
+
+  class MockVolume {
+    connect = vi.fn();
+    toDestination = vi.fn(() => this);
+    dispose = vi.fn();
+
+    constructor() {
+      volumeInstances.push(this);
+    }
+  }
+
+  const start = vi.fn(async () => undefined);
+  const loaded = vi.fn(async () => undefined);
+  const now = vi.fn(() => 0);
+  const Time = vi.fn(() => ({ toSeconds: () => 1 }));
+
+  return {
+    samplerInstances,
+    filterInstances,
+    volumeInstances,
+    start,
+    loaded,
+    now,
+    Time,
+    module: {
+      Sampler: MockSampler,
+      Filter: MockFilter,
+      Volume: MockVolume,
+      start,
+      loaded,
+      now,
+      Time,
+    },
+  };
+});
+
+vi.mock("tone", () => toneMockState.module);
+
 import Home from "@/app/page";
 
 describe("Home page", () => {
   const originalRequestMIDIAccess = navigator.requestMIDIAccess;
+  const originalMatchMedia = window.matchMedia;
 
   afterEach(() => {
     cleanup();
+    document.documentElement.classList.remove("dark");
+    document.documentElement.style.colorScheme = "";
+    if (originalMatchMedia) {
+      window.matchMedia = originalMatchMedia;
+    } else {
+      const testWindow = window as unknown as { matchMedia?: Window["matchMedia"] };
+      delete testWindow.matchMedia;
+    }
     if (originalRequestMIDIAccess) {
       navigator.requestMIDIAccess = originalRequestMIDIAccess;
     } else {
@@ -17,6 +105,13 @@ describe("Home page", () => {
 
   beforeEach(() => {
     localStorage.clear();
+    toneMockState.samplerInstances.length = 0;
+    toneMockState.filterInstances.length = 0;
+    toneMockState.volumeInstances.length = 0;
+    toneMockState.start.mockClear();
+    toneMockState.loaded.mockClear();
+    toneMockState.now.mockClear();
+    toneMockState.Time.mockClear();
   });
 
   it("shows detected chord info as keys are selected and clears selection", async () => {
@@ -205,6 +300,87 @@ describe("Home page", () => {
     ).toBeInTheDocument();
   });
 
+  it("plays selected notes and disposes Tone resources on unmount", async () => {
+    const user = userEvent.setup();
+
+    const { unmount } = render(<Home />);
+    const playButton = screen.getByRole("button", { name: "Play selected chord" });
+
+    expect(playButton).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "Select C4" }));
+    await user.click(screen.getByRole("button", { name: "Select E4" }));
+    expect(playButton).toBeEnabled();
+
+    await user.click(playButton);
+
+    await waitFor(() => {
+      expect(toneMockState.start).toHaveBeenCalledTimes(1);
+      expect(toneMockState.loaded).toHaveBeenCalledTimes(1);
+      expect(toneMockState.samplerInstances[0]?.triggerAttackRelease).toHaveBeenCalledTimes(2);
+    });
+
+    expect(toneMockState.samplerInstances[0]?.releaseAll).toHaveBeenCalledWith(0);
+    expect(toneMockState.samplerInstances[0]?.triggerAttackRelease).toHaveBeenNthCalledWith(
+      1,
+      "C4",
+      "1n",
+      0,
+      0.58,
+    );
+    expect(toneMockState.samplerInstances[0]?.triggerAttackRelease).toHaveBeenNthCalledWith(
+      2,
+      "E4",
+      "1n",
+      0.05,
+      0.58,
+    );
+
+    unmount();
+    expect(toneMockState.samplerInstances[0]?.dispose).toHaveBeenCalledTimes(1);
+    expect(toneMockState.filterInstances[0]?.dispose).toHaveBeenCalledTimes(1);
+    expect(toneMockState.volumeInstances[0]?.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it("loads, toggles, and persists dark theme preference", async () => {
+    const user = userEvent.setup();
+    localStorage.setItem("accordis-theme-preference", "dark");
+
+    render(<Home />);
+
+    const themeToggle = await screen.findByRole("button", { name: "Switch to light mode" });
+    expect(document.documentElement).toHaveClass("dark");
+    expect(document.documentElement.style.colorScheme).toBe("dark");
+
+    await user.click(themeToggle);
+
+    await screen.findByRole("button", { name: "Switch to dark mode" });
+    expect(document.documentElement).not.toHaveClass("dark");
+    expect(document.documentElement.style.colorScheme).toBe("light");
+    expect(localStorage.getItem("accordis-theme-preference")).toBe("light");
+  });
+
+  it("uses system dark preference when no saved theme exists", async () => {
+    (window as Window & { matchMedia?: Window["matchMedia"] }).matchMedia = vi
+      .fn()
+      .mockImplementation((query: string) => ({
+        matches: query === "(prefers-color-scheme: dark)",
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }));
+
+    render(<Home />);
+
+    await screen.findByRole("button", { name: "Switch to light mode" });
+    expect(document.documentElement).toHaveClass("dark");
+    expect(localStorage.getItem("accordis-theme-preference")).toBe("dark");
+  });
+
   it("shows unsupported MIDI text only after attempting to enable MIDI", async () => {
     const user = userEvent.setup();
     delete (navigator as { requestMIDIAccess?: Navigator["requestMIDIAccess"] }).requestMIDIAccess;
@@ -218,6 +394,57 @@ describe("Home page", () => {
     await user.click(midiToggleButton);
     expect(screen.getByText("MIDI unavailable.")).toBeInTheDocument();
     expect(midiToggleButton).toBeDisabled();
+  });
+
+  it("shows no-device status when MIDI is enabled without connected inputs", async () => {
+    const user = userEvent.setup();
+    const fakeMidiAccess = {
+      inputs: new Map<string, MIDIInput>(),
+      onstatechange: null,
+    } as unknown as MIDIAccess;
+    navigator.requestMIDIAccess = vi.fn().mockResolvedValue(fakeMidiAccess);
+
+    render(<Home />);
+    await user.click(screen.getByRole("button", { name: "Enable MIDI input" }));
+
+    await screen.findByText("MIDI: no device detected • Input source: On-screen keys");
+  });
+
+  it("shows failed status when enabling MIDI errors", async () => {
+    const user = userEvent.setup();
+    navigator.requestMIDIAccess = vi.fn().mockRejectedValue(new Error("No MIDI permissions"));
+
+    render(<Home />);
+    await user.click(screen.getByRole("button", { name: "Enable MIDI input" }));
+
+    await screen.findByText("MIDI failed • Input source: On-screen keys");
+  });
+
+  it("updates MIDI status when device connection changes after enabling", async () => {
+    const user = userEvent.setup();
+    const fakeInput = {
+      onmidimessage: null,
+    } as unknown as MIDIInput;
+    const mutableInputs = new Map<string, MIDIInput>();
+    const fakeMidiAccess = {
+      get inputs() {
+        return mutableInputs;
+      },
+      onstatechange: null,
+    } as unknown as MIDIAccess;
+    navigator.requestMIDIAccess = vi.fn().mockResolvedValue(fakeMidiAccess);
+
+    render(<Home />);
+    await user.click(screen.getByRole("button", { name: "Enable MIDI input" }));
+    await screen.findByText("MIDI: no device detected • Input source: On-screen keys");
+
+    mutableInputs.set("input-1", fakeInput);
+    await act(async () => {
+      fakeMidiAccess.onstatechange?.({} as MIDIConnectionEvent);
+    });
+
+    await screen.findByText("MIDI: connected • Input source: On-screen keys");
+    expect(fakeInput.onmidimessage).not.toBeNull();
   });
 
   it("latches MIDI chord notes after release and resets when a new chord starts", async () => {
