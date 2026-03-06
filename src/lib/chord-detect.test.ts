@@ -129,6 +129,16 @@ describe("detectChords", () => {
     );
   });
 
+  it("keeps full triad interpretations ranked above omitted-seventh alternatives", () => {
+    const [firstMatch] = detectChords(["D4", "F#4", "A4"]);
+
+    expect(firstMatch).toMatchObject({
+      symbol: "D",
+      partialOmission: null,
+      inversionLabel: "Root position",
+    });
+  });
+
   it("keeps triads strict when the fifth is omitted", () => {
     expect(detectChords(["C4", "E4", "C5"])).toEqual([]);
   });
@@ -165,6 +175,27 @@ describe("detectChords", () => {
           slashSymbol: null,
           inversionLabel: "Root position",
           partialOmission: "fifth",
+        }),
+      ]),
+    );
+  });
+
+  it("does not infer omitted sevenths for five-note templates", () => {
+    const matches = detectChords(["C4", "D4", "E4", "G4"]);
+
+    expect(matches).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          symbol: "Cadd9",
+          partialOmission: null,
+        }),
+      ]),
+    );
+    expect(matches).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          symbol: "Cmaj9",
+          partialOmission: "seventh",
         }),
       ]),
     );

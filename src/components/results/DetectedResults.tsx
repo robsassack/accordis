@@ -3,11 +3,20 @@ import { MIN_UNIQUE_NOTES_FOR_CHORD } from "@/lib/chord-detect";
 import type { ChordMatch, IntervalMatch } from "@/lib/chord-types";
 import { formatMusicText, type NotationPreference, type PitchClass } from "@/lib/piano";
 
+type PartialBadgeHighlight = {
+  badgeId: string;
+  missingNote: PitchClass;
+  root: PitchClass;
+};
+
 type DetectedResultsProps = {
   uniquePitchClasses: PitchClass[];
   intervalMatches: IntervalMatch[];
   chordMatches: ChordMatch[];
   notationPreference: NotationPreference;
+  highlightedPartialBadgeId: string | null;
+  onPartialBadgeHoverChange: (highlight: PartialBadgeHighlight | null) => void;
+  onPartialBadgeSelect: (highlight: PartialBadgeHighlight) => void;
 };
 
 type BadgeWithTooltipProps = {
@@ -18,6 +27,11 @@ type BadgeWithTooltipProps = {
   isOpen: boolean;
   onOpen: (id: string) => void;
   onClose: () => void;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
+  onClick?: () => void;
 };
 
 function BadgeWithTooltip({
@@ -28,6 +42,11 @@ function BadgeWithTooltip({
   isOpen,
   onOpen,
   onClose,
+  onMouseEnter,
+  onMouseLeave,
+  onFocus,
+  onBlur,
+  onClick,
 }: BadgeWithTooltipProps) {
   const tooltipRef = useRef<HTMLSpanElement>(null);
 
@@ -70,11 +89,11 @@ function BadgeWithTooltip({
         aria-expanded={isOpen}
         aria-describedby={isOpen ? `${id}-tooltip` : undefined}
         className={`${className} whitespace-nowrap`}
-        onMouseEnter={() => onOpen(id)}
-        onMouseLeave={onClose}
-        onFocus={() => onOpen(id)}
-        onBlur={onClose}
-        onClick={() => onOpen(id)}
+        onMouseEnter={onMouseEnter ?? (() => onOpen(id))}
+        onMouseLeave={onMouseLeave ?? onClose}
+        onFocus={onFocus ?? (() => onOpen(id))}
+        onBlur={onBlur ?? onClose}
+        onClick={onClick ?? (() => onOpen(id))}
       >
         {label}
       </button>
@@ -97,6 +116,9 @@ export function DetectedResults({
   intervalMatches,
   chordMatches,
   notationPreference,
+  highlightedPartialBadgeId,
+  onPartialBadgeHoverChange,
+  onPartialBadgeSelect,
 }: DetectedResultsProps) {
   const helperMessageClassName = "text-sm text-slate-600 dark:text-slate-400";
   const [openBadgeId, setOpenBadgeId] = useState<string | null>(null);
@@ -257,24 +279,64 @@ export function DetectedResults({
                       onClose={() => setOpenBadgeId(null)}
                     />
                   )}
-                  {match.partialOmission === null ? null : (
-                    <BadgeWithTooltip
-                      id={`partial-${index}-${match.symbol}`}
-                      label={match.partialOmission === "fifth" ? "Partial: No 5th" : "Partial: No 7th"}
-                      explanation={`Match inferred from an omitted ${
-                        match.partialOmission === "fifth" ? "fifth" : "seventh"
-                      }. Missing note: ${
-                        formatMusicText(
-                          getOmittedNoteForMatch(match) ?? "unknown",
-                          notationPreference,
-                        )
-                      }.`}
-                      className="rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-amber-800 dark:border-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
-                      isOpen={openBadgeId === `partial-${index}-${match.symbol}`}
-                      onOpen={setOpenBadgeId}
-                      onClose={() => setOpenBadgeId(null)}
-                    />
-                  )}
+                  {match.partialOmission === null
+                    ? null
+                    : (() => {
+                        const partialBadgeId = `partial-${index}-${match.symbol}`;
+                        const omittedNote = getOmittedNoteForMatch(match);
+                        const partialHighlight =
+                          omittedNote === null
+                            ? null
+                            : {
+                                badgeId: partialBadgeId,
+                                missingNote: omittedNote,
+                                root: match.root,
+                              };
+                        const isPartialBadgeHighlighted = highlightedPartialBadgeId === partialBadgeId;
+
+                        return (
+                          <BadgeWithTooltip
+                            id={partialBadgeId}
+                            label={match.partialOmission === "fifth" ? "Partial: No 5th" : "Partial: No 7th"}
+                            explanation={`Match inferred from an omitted ${
+                              match.partialOmission === "fifth" ? "fifth" : "seventh"
+                            }. Missing note: ${formatMusicText(
+                              omittedNote ?? "unknown",
+                              notationPreference,
+                            )}.`}
+                            className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold tracking-wide ${
+                              isPartialBadgeHighlighted
+                                ? "border-orange-300 bg-orange-200 text-orange-900 dark:border-orange-500 dark:bg-orange-500/30 dark:text-orange-100"
+                                : "border-amber-200 bg-amber-100 text-amber-800 dark:border-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
+                            }`}
+                            isOpen={openBadgeId === partialBadgeId}
+                            onOpen={setOpenBadgeId}
+                            onClose={() => setOpenBadgeId(null)}
+                            onMouseEnter={() => {
+                              setOpenBadgeId(partialBadgeId);
+                              onPartialBadgeHoverChange(partialHighlight);
+                            }}
+                            onMouseLeave={() => {
+                              setOpenBadgeId(null);
+                              onPartialBadgeHoverChange(null);
+                            }}
+                            onFocus={() => {
+                              setOpenBadgeId(partialBadgeId);
+                              onPartialBadgeHoverChange(partialHighlight);
+                            }}
+                            onBlur={() => {
+                              setOpenBadgeId(null);
+                              onPartialBadgeHoverChange(null);
+                            }}
+                            onClick={() => {
+                              setOpenBadgeId(partialBadgeId);
+                              if (partialHighlight) {
+                                onPartialBadgeSelect(partialHighlight);
+                              }
+                            }}
+                          />
+                        );
+                      })()}
                 </div>
               </div>
               <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">

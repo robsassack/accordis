@@ -10,6 +10,7 @@ import {
   pitchClassToIndex,
   uniquePitchClassesFromKeyIds,
   type NotationPreference,
+  type PitchClass,
 } from "@/lib/piano";
 import { PianoKeyboard } from "@/components/piano/PianoKeyboard";
 import { SelectionBar } from "@/components/piano/SelectionBar";
@@ -28,6 +29,11 @@ type MidiConnectionState =
   | "no-device"
   | "unsupported"
   | "error";
+type PartialBadgeHighlight = {
+  badgeId: string;
+  missingNote: PitchClass;
+  root: PitchClass;
+};
 const MIDI_RELEASE_BATCH_WINDOW_MS = 35;
 const CHORD_STRUM_STEP_SECONDS = 0.05;
 const CHORD_NOTE_DURATION = "1n";
@@ -79,6 +85,11 @@ export default function Home() {
   const [themePreference, setThemePreference] = useState<ThemePreference>("light");
   const [hasInitializedClientState, setHasInitializedClientState] = useState(false);
   const [isChordPlaying, setIsChordPlaying] = useState(false);
+  const [hoveredPartialHighlight, setHoveredPartialHighlight] = useState<PartialBadgeHighlight | null>(
+    null,
+  );
+  const [selectedPartialHighlight, setSelectedPartialHighlight] =
+    useState<PartialBadgeHighlight | null>(null);
   const activeMidiNotesRef = useRef<Set<number>>(new Set<number>());
   const latchedMidiNotesRef = useRef<Set<number>>(new Set<number>());
   const releasedMidiBatchRef = useRef<Set<number>>(new Set<number>());
@@ -95,6 +106,11 @@ export default function Home() {
   useEffect(() => {
     selectionSourceRef.current = selectionSource;
   }, [selectionSource]);
+
+  useEffect(() => {
+    setHoveredPartialHighlight(null);
+    setSelectedPartialHighlight(null);
+  }, [selectedKeys]);
 
   useEffect(() => {
     return () => {
@@ -454,6 +470,75 @@ export default function Home() {
   const intervalMatches = detectIntervals(selectedKeys);
   const chordMatches = detectChords(selectedKeys);
   const isDarkMode = themePreference === "dark";
+  const activePartialHighlight = hoveredPartialHighlight ?? selectedPartialHighlight;
+  const missingPitchClass = activePartialHighlight?.missingNote ?? null;
+  const parsedSelectedKeys = selectedKeys
+    .map((keyId) => parseKeyId(keyId))
+    .filter((parsed): parsed is NonNullable<typeof parsed> => parsed !== null);
+  const preferredMissingMidi =
+    parsedSelectedKeys.length > 0
+      ? Math.round(
+          parsedSelectedKeys.reduce((sum, parsed) => sum + parsed.midiLike, 0) /
+            parsedSelectedKeys.length,
+        )
+      : null;
+  const keyCandidates = PIANO_KEYS.filter((key) => key.note === missingPitchClass);
+  const keyIdWithMidi = keyCandidates.map((key) => ({
+    keyId: `${key.note}${key.octave}`,
+    midiLike: key.octave * 12 + pitchClassToIndex(key.note),
+  }));
+  const rootPositionMissingMidi = (() => {
+    if (!activePartialHighlight || parsedSelectedKeys.length === 0) {
+      return null;
+    }
+
+    const lowestRootSelection = parsedSelectedKeys
+      .filter((parsed) => parsed.note === activePartialHighlight.root)
+      .sort((a, b) => a.midiLike - b.midiLike)[0];
+    if (!lowestRootSelection) {
+      return null;
+    }
+
+    const rootToMissingInterval =
+      (pitchClassToIndex(activePartialHighlight.missingNote) -
+        pitchClassToIndex(activePartialHighlight.root) +
+        12) %
+      12;
+    return lowestRootSelection.midiLike + (rootToMissingInterval === 0 ? 12 : rootToMissingInterval);
+  })();
+  const findClosestCandidateKeyId = (
+    targetMidi: number | null,
+    excludedKeyId: string | null = null,
+  ): string | null => {
+    const candidates = keyIdWithMidi.filter((candidate) => candidate.keyId !== excludedKeyId);
+    if (candidates.length === 0) {
+      return null;
+    }
+
+    if (targetMidi === null) {
+      return candidates[0]?.keyId ?? null;
+    }
+
+    const closestCandidate = candidates.reduce((closest, candidate) =>
+      Math.abs(candidate.midiLike - targetMidi) < Math.abs(closest.midiLike - targetMidi)
+        ? candidate
+        : closest,
+    );
+    return closestCandidate.keyId;
+  };
+  const primaryMissingKeyId = (() => {
+    if (!missingPitchClass) {
+      return null;
+    }
+
+    if (keyIdWithMidi.length === 0) {
+      return null;
+    }
+
+    const rootPositionTargetMidi = rootPositionMissingMidi ?? preferredMissingMidi;
+    return findClosestCandidateKeyId(rootPositionTargetMidi);
+  })();
+  const secondaryMissingKeyId = findClosestCandidateKeyId(preferredMissingMidi, primaryMissingKeyId);
 
   return (
     <main className="min-h-screen bg-linear-to-b from-slate-100 via-white to-sky-50 px-6 py-12 text-slate-900 transition-colors dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 dark:text-slate-100">
@@ -499,6 +584,8 @@ export default function Home() {
           <PianoKeyboard
             keys={PIANO_KEYS}
             selectedKeys={selectedKeys}
+            primaryMissingKeyId={primaryMissingKeyId}
+            secondaryMissingKeyId={secondaryMissingKeyId}
             onKeyClick={handleKeyClick}
             notationPreference={notationPreference}
           />
@@ -508,6 +595,16 @@ export default function Home() {
             intervalMatches={intervalMatches}
             chordMatches={chordMatches}
             notationPreference={notationPreference}
+            highlightedPartialBadgeId={selectedPartialHighlight?.badgeId ?? null}
+            onPartialBadgeHoverChange={setHoveredPartialHighlight}
+            onPartialBadgeSelect={(highlight) => {
+              setSelectedPartialHighlight((currentHighlight) => {
+                if (currentHighlight?.badgeId === highlight.badgeId) {
+                  return null;
+                }
+                return highlight;
+              });
+            }}
           />
         </section>
       </div>

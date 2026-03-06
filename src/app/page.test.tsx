@@ -282,6 +282,76 @@ describe("Home page", () => {
     expect(screen.getByText("Match inferred from an omitted fifth. Missing note: A.")).toBeInTheDocument();
   });
 
+  it("highlights a missing key while hovering a partial badge", async () => {
+    const user = userEvent.setup();
+
+    render(<Home />);
+
+    await user.click(screen.getByRole("button", { name: "Clear selected keys" }));
+    await user.click(screen.getByRole("button", { name: "Select F♯4" }));
+    await user.click(screen.getByRole("button", { name: "Select C5" }));
+    await user.click(screen.getByRole("button", { name: "Select D5" }));
+
+    const partialBadge = screen.getAllByRole("button", { name: "Partial: No 5th" })[0];
+    const rootPositionKey = screen.getByRole("button", { name: "Select A5" });
+    const inversionKey = screen.getByRole("button", { name: "Select A4" });
+
+    expect(rootPositionKey).not.toHaveAttribute("data-missing-primary", "true");
+    expect(inversionKey).not.toHaveAttribute("data-missing-secondary", "true");
+    await user.hover(partialBadge);
+    expect(rootPositionKey).toHaveAttribute("data-missing-primary", "true");
+    expect(inversionKey).toHaveAttribute("data-missing-secondary", "true");
+    await user.unhover(partialBadge);
+    expect(rootPositionKey).not.toHaveAttribute("data-missing-primary", "true");
+    expect(inversionKey).not.toHaveAttribute("data-missing-secondary", "true");
+  });
+
+  it("keeps a missing key highlighted after clicking a partial badge", async () => {
+    const user = userEvent.setup();
+
+    render(<Home />);
+
+    await user.click(screen.getByRole("button", { name: "Clear selected keys" }));
+    await user.click(screen.getByRole("button", { name: "Select F♯4" }));
+    await user.click(screen.getByRole("button", { name: "Select C5" }));
+    await user.click(screen.getByRole("button", { name: "Select D5" }));
+
+    const partialBadge = screen.getAllByRole("button", { name: "Partial: No 5th" })[0];
+    const rootPositionKey = screen.getByRole("button", { name: "Select A5" });
+    const inversionKey = screen.getByRole("button", { name: "Select A4" });
+
+    await user.click(partialBadge);
+    await user.unhover(partialBadge);
+    expect(rootPositionKey).toHaveAttribute("data-missing-primary", "true");
+    expect(inversionKey).toHaveAttribute("data-missing-secondary", "true");
+
+    await user.click(partialBadge);
+    await user.unhover(partialBadge);
+    expect(rootPositionKey).not.toHaveAttribute("data-missing-primary", "true");
+    expect(inversionKey).not.toHaveAttribute("data-missing-secondary", "true");
+  });
+
+  it("highlights one primary key and at most one secondary key for a partial chord badge", async () => {
+    const user = userEvent.setup();
+
+    render(<Home />);
+
+    await user.click(screen.getByRole("button", { name: "Clear selected keys" }));
+    await user.click(screen.getByRole("button", { name: "Select C4" }));
+    await user.click(screen.getByRole("button", { name: "Select E4" }));
+    await user.click(screen.getByRole("button", { name: "Select G4" }));
+
+    const partialBadges = screen.getAllByRole("button", { name: "Partial: No 7th" });
+    expect(partialBadges.length).toBeGreaterThan(0);
+
+    await user.click(partialBadges[0]);
+    const keys = screen.getAllByRole("button");
+    const primaryKeys = keys.filter((key) => key.getAttribute("data-missing-primary") === "true");
+    const secondaryKeys = keys.filter((key) => key.getAttribute("data-missing-secondary") === "true");
+    expect(primaryKeys).toHaveLength(1);
+    expect(secondaryKeys.length).toBeLessThanOrEqual(1);
+  });
+
   it("shows fifth key in altered badge explanation popup", async () => {
     const user = userEvent.setup();
 

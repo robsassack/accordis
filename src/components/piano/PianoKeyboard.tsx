@@ -4,6 +4,8 @@ import { formatMusicText, type NotationPreference, type PianoKey } from "@/lib/p
 type PianoKeyboardProps = {
   keys: PianoKey[];
   selectedKeys: string[];
+  primaryMissingKeyId: string | null;
+  secondaryMissingKeyId: string | null;
   onKeyClick: (keyId: string) => void;
   notationPreference: NotationPreference;
   blackKeyWidthPercent?: number;
@@ -13,6 +15,8 @@ type PianoKeyboardProps = {
 export function PianoKeyboard({
   keys,
   selectedKeys,
+  primaryMissingKeyId,
+  secondaryMissingKeyId,
   onKeyClick,
   notationPreference,
   blackKeyWidthPercent = 4.8,
@@ -93,16 +97,26 @@ export function PianoKeyboard({
             {whiteKeys.map((key) => {
               const id = `${key.note}${key.octave}`;
               const isSelected = selectedKeys.includes(id);
+              const isPrimaryMissing = primaryMissingKeyId === id;
+              const isSecondaryMissing = secondaryMissingKeyId === id;
+              const isMissing = isPrimaryMissing || isSecondaryMissing;
 
               return (
                 <button
                   key={id}
                   type="button"
                   data-key-id={id}
+                  data-missing={isMissing ? "true" : undefined}
+                  data-missing-primary={isPrimaryMissing ? "true" : undefined}
+                  data-missing-secondary={isSecondaryMissing ? "true" : undefined}
                   onClick={() => onKeyClick(id)}
                   className={`relative h-full flex-1 rounded-b-md border border-slate-300 pb-3 text-xs font-medium transition dark:border-slate-700 ${
                     isSelected
                       ? "bg-sky-100 text-sky-900 dark:bg-sky-900/50 dark:text-sky-100"
+                      : isPrimaryMissing
+                        ? "bg-amber-200 text-amber-900 ring-2 ring-inset ring-amber-400 dark:bg-amber-700/50 dark:text-amber-100 dark:ring-amber-500"
+                      : isSecondaryMissing
+                        ? "bg-amber-100 text-amber-700 ring-1 ring-inset ring-amber-300 dark:bg-amber-900/30 dark:text-amber-300 dark:ring-amber-700"
                       : "bg-white text-slate-700 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
                   }`}
                   aria-label={`Select ${formatMusicText(id, notationPreference)}`}
@@ -118,6 +132,9 @@ export function PianoKeyboard({
           {blackKeys.map(({ key, index }) => {
             const id = `${key.note}${key.octave}`;
             const isSelected = selectedKeys.includes(id);
+            const isPrimaryMissing = primaryMissingKeyId === id;
+            const isSecondaryMissing = secondaryMissingKeyId === id;
+            const isMissing = isPrimaryMissing || isSecondaryMissing;
             const whiteKeysBefore = keys
               .slice(0, index)
               .filter((pianoKey) => !pianoKey.isSharp).length;
@@ -130,9 +147,18 @@ export function PianoKeyboard({
                 key={id}
                 type="button"
                 data-key-id={id}
+                data-missing={isMissing ? "true" : undefined}
+                data-missing-primary={isPrimaryMissing ? "true" : undefined}
+                data-missing-secondary={isSecondaryMissing ? "true" : undefined}
                 onClick={() => onKeyClick(id)}
                 className={`absolute z-10 h-28 rounded-b-md border-x border-b border-slate-900 text-[10px] font-medium text-white transition dark:border-slate-950 sm:mt-1 sm:h-35 ${
-                  isSelected ? "bg-sky-700 dark:bg-sky-600" : "bg-slate-900 hover:bg-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700"
+                  isSelected
+                    ? "bg-sky-700 dark:bg-sky-600"
+                    : isPrimaryMissing
+                      ? "bg-amber-500 text-amber-950 ring-2 ring-amber-300 dark:bg-amber-400 dark:text-amber-950 dark:ring-amber-200"
+                    : isSecondaryMissing
+                      ? "bg-amber-700 text-amber-100 ring-1 ring-amber-500 dark:bg-amber-800 dark:text-amber-200 dark:ring-amber-600"
+                      : "bg-slate-900 hover:bg-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700"
                 }`}
                 style={{
                   left: `calc(${left}% - ${blackKeyGapReductionPx}px)`,
