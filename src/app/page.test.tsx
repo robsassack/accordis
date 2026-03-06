@@ -80,9 +80,24 @@ const toneMockState = vi.hoisted(() => {
 
 vi.mock("tone", () => toneMockState.module);
 
-import Home from "@/app/page";
+const pathnameState = vi.hoisted(() => ({ current: "/detect" }));
 
-describe("Home page", () => {
+vi.mock("next/navigation", () => ({
+  usePathname: vi.fn(() => pathnameState.current),
+}));
+
+import WorkspaceLayout from "@/app/(workspace)/layout";
+import { DetectWorkspace } from "@/components/detect/DetectWorkspace";
+
+function renderDetectRoute() {
+  return render(
+    <WorkspaceLayout>
+      <DetectWorkspace />
+    </WorkspaceLayout>,
+  );
+}
+
+describe("Detect workspace route", () => {
   const originalRequestMIDIAccess = navigator.requestMIDIAccess;
   const originalMatchMedia = window.matchMedia;
 
@@ -104,6 +119,7 @@ describe("Home page", () => {
   });
 
   beforeEach(() => {
+    pathnameState.current = "/detect";
     localStorage.clear();
     toneMockState.samplerInstances.length = 0;
     toneMockState.filterInstances.length = 0;
@@ -117,7 +133,7 @@ describe("Home page", () => {
   it("shows detected chord info as keys are selected and clears selection", async () => {
     const user = userEvent.setup();
 
-    render(<Home />);
+    renderDetectRoute();
 
     expect(screen.getByText("Current: None")).toBeInTheDocument();
     expect(
@@ -139,10 +155,17 @@ describe("Home page", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders mode links to detect and library routes", () => {
+    renderDetectRoute();
+
+    expect(screen.getByRole("tab", { name: "Detect" })).toHaveAttribute("href", "/detect");
+    expect(screen.getByRole("tab", { name: "Library" })).toHaveAttribute("href", "/library/scales");
+  });
+
   it("allows switching display notation from sharps to flats", async () => {
     const user = userEvent.setup();
 
-    render(<Home />);
+    renderDetectRoute();
 
     await user.click(screen.getByRole("button", { name: "Clear selected keys" }));
     await user.click(screen.getByRole("button", { name: "Select C♯4" }));
@@ -162,7 +185,7 @@ describe("Home page", () => {
   it("shows slash notation for a dominant seventh inversion with omitted fifth", async () => {
     const user = userEvent.setup();
 
-    render(<Home />);
+    renderDetectRoute();
 
     await user.click(screen.getByRole("button", { name: "Clear selected keys" }));
     await user.click(screen.getByRole("button", { name: "Select F♯4" }));
@@ -178,7 +201,7 @@ describe("Home page", () => {
   it("shows partial omitted-seventh labels for seventh chord interpretations", async () => {
     const user = userEvent.setup();
 
-    render(<Home />);
+    renderDetectRoute();
 
     await user.click(screen.getByRole("button", { name: "Clear selected keys" }));
     await user.click(screen.getByRole("button", { name: "Select D4" }));
@@ -192,7 +215,7 @@ describe("Home page", () => {
   it("shows primary/secondary ranking badges and triad extension badge", async () => {
     const user = userEvent.setup();
 
-    render(<Home />);
+    renderDetectRoute();
 
     await user.click(screen.getByRole("button", { name: "Clear selected keys" }));
     await user.click(screen.getByRole("button", { name: "Select C4" }));
@@ -207,7 +230,7 @@ describe("Home page", () => {
   it("shows altered badge for altered-fifth chord detections", async () => {
     const user = userEvent.setup();
 
-    render(<Home />);
+    renderDetectRoute();
 
     await user.click(screen.getByRole("button", { name: "Clear selected keys" }));
     await user.click(screen.getByRole("button", { name: "Select C4" }));
@@ -222,7 +245,7 @@ describe("Home page", () => {
   it("shows 9th extension badge for ninth chord detections", async () => {
     const user = userEvent.setup();
 
-    render(<Home />);
+    renderDetectRoute();
 
     await user.click(screen.getByRole("button", { name: "Clear selected keys" }));
     await user.click(screen.getByRole("button", { name: "Select C4" }));
@@ -238,7 +261,7 @@ describe("Home page", () => {
   it("shows 9th extension badge for add9 chord detections", async () => {
     const user = userEvent.setup();
 
-    render(<Home />);
+    renderDetectRoute();
 
     await user.click(screen.getByRole("button", { name: "Clear selected keys" }));
     await user.click(screen.getByRole("button", { name: "Select F4" }));
@@ -253,7 +276,7 @@ describe("Home page", () => {
   it("shows a badge explanation popup when a badge is clicked", async () => {
     const user = userEvent.setup();
 
-    render(<Home />);
+    renderDetectRoute();
 
     await user.click(screen.getByRole("button", { name: "Clear selected keys" }));
     await user.click(screen.getByRole("button", { name: "Select C4" }));
@@ -270,7 +293,7 @@ describe("Home page", () => {
   it("shows omitted note in partial badge explanation popup", async () => {
     const user = userEvent.setup();
 
-    render(<Home />);
+    renderDetectRoute();
 
     await user.click(screen.getByRole("button", { name: "Clear selected keys" }));
     await user.click(screen.getByRole("button", { name: "Select F♯4" }));
@@ -285,7 +308,7 @@ describe("Home page", () => {
   it("highlights a missing key while hovering a partial badge", async () => {
     const user = userEvent.setup();
 
-    render(<Home />);
+    renderDetectRoute();
 
     await user.click(screen.getByRole("button", { name: "Clear selected keys" }));
     await user.click(screen.getByRole("button", { name: "Select F♯4" }));
@@ -309,7 +332,7 @@ describe("Home page", () => {
   it("keeps a missing key highlighted after clicking a partial badge", async () => {
     const user = userEvent.setup();
 
-    render(<Home />);
+    renderDetectRoute();
 
     await user.click(screen.getByRole("button", { name: "Clear selected keys" }));
     await user.click(screen.getByRole("button", { name: "Select F♯4" }));
@@ -334,7 +357,7 @@ describe("Home page", () => {
   it("highlights one primary key and at most one secondary key for a partial chord badge", async () => {
     const user = userEvent.setup();
 
-    render(<Home />);
+    renderDetectRoute();
 
     await user.click(screen.getByRole("button", { name: "Clear selected keys" }));
     await user.click(screen.getByRole("button", { name: "Select C4" }));
@@ -355,7 +378,7 @@ describe("Home page", () => {
   it("shows fifth key in altered badge explanation popup", async () => {
     const user = userEvent.setup();
 
-    render(<Home />);
+    renderDetectRoute();
 
     await user.click(screen.getByRole("button", { name: "Clear selected keys" }));
     await user.click(screen.getByRole("button", { name: "Select C4" }));
@@ -373,7 +396,7 @@ describe("Home page", () => {
   it("plays selected notes and disposes Tone resources on unmount", async () => {
     const user = userEvent.setup();
 
-    const { unmount } = render(<Home />);
+    const { unmount } = renderDetectRoute();
     const playButton = screen.getByRole("button", { name: "Play selected chord" });
 
     expect(playButton).toBeDisabled();
@@ -416,11 +439,13 @@ describe("Home page", () => {
     const user = userEvent.setup();
     localStorage.setItem("accordis-theme-preference", "dark");
 
-    render(<Home />);
+    renderDetectRoute();
 
     const themeToggle = await screen.findByRole("button", { name: "Switch to light mode" });
-    expect(document.documentElement).toHaveClass("dark");
-    expect(document.documentElement.style.colorScheme).toBe("dark");
+    await waitFor(() => {
+      expect(document.documentElement).toHaveClass("dark");
+      expect(document.documentElement.style.colorScheme).toBe("dark");
+    });
 
     await user.click(themeToggle);
 
@@ -444,18 +469,20 @@ describe("Home page", () => {
         dispatchEvent: vi.fn(),
       }));
 
-    render(<Home />);
+    renderDetectRoute();
 
     await screen.findByRole("button", { name: "Switch to light mode" });
-    expect(document.documentElement).toHaveClass("dark");
-    expect(localStorage.getItem("accordis-theme-preference")).toBe("dark");
+    await waitFor(() => {
+      expect(document.documentElement).toHaveClass("dark");
+      expect(localStorage.getItem("accordis-theme-preference")).toBe("dark");
+    });
   });
 
   it("shows unsupported MIDI text only after attempting to enable MIDI", async () => {
     const user = userEvent.setup();
     delete (navigator as { requestMIDIAccess?: Navigator["requestMIDIAccess"] }).requestMIDIAccess;
 
-    render(<Home />);
+    renderDetectRoute();
     const midiToggleButton = screen.getByRole("button", { name: "Enable MIDI input" });
 
     expect(screen.queryByText("MIDI unavailable.")).not.toBeInTheDocument();
@@ -474,7 +501,7 @@ describe("Home page", () => {
     } as unknown as MIDIAccess;
     navigator.requestMIDIAccess = vi.fn().mockResolvedValue(fakeMidiAccess);
 
-    render(<Home />);
+    renderDetectRoute();
     await user.click(screen.getByRole("button", { name: "Enable MIDI input" }));
 
     await screen.findByText("MIDI: no device detected • Input source: On-screen keys");
@@ -484,7 +511,7 @@ describe("Home page", () => {
     const user = userEvent.setup();
     navigator.requestMIDIAccess = vi.fn().mockRejectedValue(new Error("No MIDI permissions"));
 
-    render(<Home />);
+    renderDetectRoute();
     await user.click(screen.getByRole("button", { name: "Enable MIDI input" }));
 
     await screen.findByText("MIDI failed • Input source: On-screen keys");
@@ -504,7 +531,7 @@ describe("Home page", () => {
     } as unknown as MIDIAccess;
     navigator.requestMIDIAccess = vi.fn().mockResolvedValue(fakeMidiAccess);
 
-    render(<Home />);
+    renderDetectRoute();
     await user.click(screen.getByRole("button", { name: "Enable MIDI input" }));
     await screen.findByText("MIDI: no device detected • Input source: On-screen keys");
 
@@ -529,7 +556,7 @@ describe("Home page", () => {
     const requestMIDIAccessMock = vi.fn().mockResolvedValue(fakeMidiAccess);
     navigator.requestMIDIAccess = requestMIDIAccessMock;
 
-    render(<Home />);
+    renderDetectRoute();
     expect(screen.queryByText("MIDI is off.")).not.toBeInTheDocument();
     expect(requestMIDIAccessMock).not.toHaveBeenCalled();
 
