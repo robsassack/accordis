@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { detectChords, detectIntervals } from "@/lib/chord-detect";
 import {
   buildPianoKeys,
@@ -22,23 +22,22 @@ type PartialBadgeHighlight = {
   missingNote: PitchClass;
   root: PitchClass;
 };
+type SelectionScopedPartialBadgeHighlight = {
+  highlight: PartialBadgeHighlight;
+  selectedKeysSignature: string;
+};
 
 export function DetectWorkspace() {
-  const [hoveredPartialHighlight, setHoveredPartialHighlight] = useState<PartialBadgeHighlight | null>(
-    null,
-  );
+  const [hoveredPartialHighlight, setHoveredPartialHighlight] =
+    useState<SelectionScopedPartialBadgeHighlight | null>(null);
   const [selectedPartialHighlight, setSelectedPartialHighlight] =
-    useState<PartialBadgeHighlight | null>(null);
+    useState<SelectionScopedPartialBadgeHighlight | null>(null);
   const { isChordPlaying, playSelectedKeys } = useChordAudio();
   const { selectedKeys, setSelectedKeys, notationPreference, setNotationPreference } =
     useDetectSession();
   const { midiEnabled, midiToggleDisabled, midiStatusLine, handleMidiToggle, beginManualSelection } =
     useMidiSession();
-
-  useEffect(() => {
-    setHoveredPartialHighlight(null);
-    setSelectedPartialHighlight(null);
-  }, [selectedKeys]);
+  const selectedKeysSignature = selectedKeys.join("|");
 
   function handleKeyClick(keyId: string): void {
     beginManualSelection();
@@ -59,7 +58,15 @@ export function DetectWorkspace() {
   const uniquePitchClasses = uniquePitchClassesFromKeyIds(selectedKeys);
   const intervalMatches = detectIntervals(selectedKeys);
   const chordMatches = detectChords(selectedKeys);
-  const activePartialHighlight = hoveredPartialHighlight ?? selectedPartialHighlight;
+  const activeHoveredPartialHighlight =
+    hoveredPartialHighlight?.selectedKeysSignature === selectedKeysSignature
+      ? hoveredPartialHighlight.highlight
+      : null;
+  const activeSelectedPartialHighlight =
+    selectedPartialHighlight?.selectedKeysSignature === selectedKeysSignature
+      ? selectedPartialHighlight.highlight
+      : null;
+  const activePartialHighlight = activeHoveredPartialHighlight ?? activeSelectedPartialHighlight;
   const missingPitchClass = activePartialHighlight?.missingNote ?? null;
   const parsedSelectedKeys = selectedKeys
     .map((keyId) => parseKeyId(keyId))
@@ -167,14 +174,21 @@ export function DetectWorkspace() {
         intervalMatches={intervalMatches}
         chordMatches={chordMatches}
         notationPreference={notationPreference}
-        highlightedPartialBadgeId={selectedPartialHighlight?.badgeId ?? null}
-        onPartialBadgeHoverChange={setHoveredPartialHighlight}
+        highlightedPartialBadgeId={activeSelectedPartialHighlight?.badgeId ?? null}
+        onPartialBadgeHoverChange={(highlight) => {
+          setHoveredPartialHighlight(
+            highlight ? { highlight, selectedKeysSignature } : null,
+          );
+        }}
         onPartialBadgeSelect={(highlight) => {
           setSelectedPartialHighlight((currentHighlight) => {
-            if (currentHighlight?.badgeId === highlight.badgeId) {
+            if (
+              currentHighlight?.selectedKeysSignature === selectedKeysSignature &&
+              currentHighlight.highlight.badgeId === highlight.badgeId
+            ) {
               return null;
             }
-            return highlight;
+            return { highlight, selectedKeysSignature };
           });
         }}
       />

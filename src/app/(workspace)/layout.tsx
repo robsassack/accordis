@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { ChordAudioProvider } from "@/components/audio/ChordAudioProvider";
 import { ScaleAudioProvider } from "@/components/audio/ScaleAudioProvider";
 import { DetectSessionProvider } from "@/components/detect/DetectSessionProvider";
@@ -13,11 +13,9 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
   const activeMode = pathname.startsWith("/library") ? "library" : "detect";
   const [lastLibraryHref, setLastLibraryHref] = useState("/library/scales");
 
-  useEffect(() => {
-    if (pathname.startsWith("/library/")) {
-      setLastLibraryHref(pathname);
-    }
-  }, [pathname]);
+  if (pathname.startsWith("/library/") && lastLibraryHref !== pathname) {
+    setLastLibraryHref(pathname);
+  }
 
   return (
     <ChordAudioProvider>

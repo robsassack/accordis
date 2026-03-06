@@ -137,7 +137,13 @@ export function ScaleLibraryWorkspace() {
   const pathname = usePathname();
   const router = useRouter();
   const scaleSelectionFromPath = useMemo(() => parseScaleLibraryPath(pathname), [pathname]);
-  const initialScaleLibrarySession = scaleLibrarySessionCache ?? getDefaultScaleLibrarySession();
+  const initialScaleLibrarySession = scaleSelectionFromPath
+    ? {
+        ...getDefaultScaleLibrarySession(),
+        selectedRoot: scaleSelectionFromPath.root,
+        selectedScaleId: scaleSelectionFromPath.scaleId,
+      }
+    : (scaleLibrarySessionCache ?? getInitialScaleLibrarySession());
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRoot, setSelectedRoot] = useState<PitchClass>(initialScaleLibrarySession.selectedRoot);
   const [selectedScaleId, setSelectedScaleId] = useState<ScaleId>(
@@ -150,15 +156,14 @@ export function ScaleLibraryWorkspace() {
   const [playbackDirection, setPlaybackDirection] = useState<ScalePlaybackDirection>(
     initialScaleLibrarySession.playbackDirection,
   );
-  const [hasHydratedScaleSession, setHasHydratedScaleSession] = useState(
-    scaleLibrarySessionCache !== null,
-  );
   const scaleListRef = useRef<HTMLDivElement>(null);
-  const selectedScaleDefinition = getScaleDefinitionById(selectedScaleId);
+  const activeSelectedRoot = scaleSelectionFromPath?.root ?? selectedRoot;
+  const activeSelectedScaleId = scaleSelectionFromPath?.scaleId ?? selectedScaleId;
+  const selectedScaleDefinition = getScaleDefinitionById(activeSelectedScaleId);
   const displayNotationPreference = rootNotationPreference;
-  const selectedRootText = formatMusicText(selectedRoot, rootNotationPreference);
+  const selectedRootText = formatMusicText(activeSelectedRoot, rootNotationPreference);
   const selectedScaleLabel = `${selectedRootText} ${selectedScaleDefinition.name}`;
-  const selectedScalePitchClasses = buildScalePitchClasses(selectedRoot, selectedScaleDefinition);
+  const selectedScalePitchClasses = buildScalePitchClasses(activeSelectedRoot, selectedScaleDefinition);
   const selectedPitchClassSet = new Set(selectedScalePitchClasses);
   const keyboardSelectedKeyIds = PIANO_KEYS.filter((key) => selectedPitchClassSet.has(key.note)).map(
     (key) => `${key.note}${key.octave}`,
@@ -179,9 +184,9 @@ export function ScaleLibraryWorkspace() {
       normalizedQuery.length === 0
         ? SCALE_DEFINITIONS
         : SCALE_DEFINITIONS.filter((scaleDefinition) =>
-            buildScaleSearchText(selectedRoot, scaleDefinition).includes(normalizedQuery),
+            buildScaleSearchText(activeSelectedRoot, scaleDefinition).includes(normalizedQuery),
           ),
-    [normalizedQuery, selectedRoot],
+    [activeSelectedRoot, normalizedQuery],
   );
   const filteredScaleIdSet = useMemo(
     () => new Set<ScaleId>(filteredScaleDefinitions.map((definition) => definition.id)),
@@ -201,13 +206,13 @@ export function ScaleLibraryWorkspace() {
 
   const handlePlayScale = useCallback(async (): Promise<void> => {
     const noteNames = buildScalePlaybackNoteNames(
-      selectedRoot,
+      activeSelectedRoot,
       selectedScaleDefinition,
       playbackDirection,
     );
     const stepSeconds = 60 / tempoBpm;
     await playScaleNoteSequence(noteNames, stepSeconds);
-  }, [playScaleNoteSequence, playbackDirection, selectedRoot, selectedScaleDefinition, tempoBpm]);
+  }, [activeSelectedRoot, playScaleNoteSequence, playbackDirection, selectedScaleDefinition, tempoBpm]);
 
   const handleKeyboardKeyClick = useCallback((keyId: string) => {
     const parsed = parseKeyId(keyId);
@@ -216,7 +221,10 @@ export function ScaleLibraryWorkspace() {
     }
 
     setSelectedRoot(parsed.note);
-  }, []);
+    if (pathname.startsWith("/library/scales")) {
+      router.replace(buildScaleLibraryPath(parsed.note, activeSelectedScaleId), { scroll: false });
+    }
+  }, [activeSelectedScaleId, pathname, router]);
 
   const toggleRootNotationPreference = useCallback(() => {
     setRootNotationPreference((currentPreference) =>
@@ -225,43 +233,9 @@ export function ScaleLibraryWorkspace() {
   }, []);
 
   useEffect(() => {
-    if (hasHydratedScaleSession) {
-      return;
-    }
-
-    const hydratedSession = getInitialScaleLibrarySession();
-    setSelectedRoot(hydratedSession.selectedRoot);
-    setSelectedScaleId(hydratedSession.selectedScaleId);
-    setRootNotationPreference(hydratedSession.rootNotationPreference);
-    setTempoBpm(hydratedSession.tempoBpm);
-    setPlaybackDirection(hydratedSession.playbackDirection);
-    scaleLibrarySessionCache = hydratedSession;
-    setHasHydratedScaleSession(true);
-  }, [hasHydratedScaleSession]);
-
-  useEffect(() => {
-    if (!hasHydratedScaleSession || !scaleSelectionFromPath) {
-      return;
-    }
-
-    setSelectedRoot((currentRoot) =>
-      currentRoot === scaleSelectionFromPath.root ? currentRoot : scaleSelectionFromPath.root,
-    );
-    setSelectedScaleId((currentScaleId) =>
-      currentScaleId === scaleSelectionFromPath.scaleId
-        ? currentScaleId
-        : scaleSelectionFromPath.scaleId,
-    );
-  }, [hasHydratedScaleSession, scaleSelectionFromPath]);
-
-  useEffect(() => {
-    if (!hasHydratedScaleSession) {
-      return;
-    }
-
     scaleLibrarySessionCache = {
-      selectedRoot,
-      selectedScaleId,
+      selectedRoot: activeSelectedRoot,
+      selectedScaleId: activeSelectedScaleId,
       rootNotationPreference,
       tempoBpm,
       playbackDirection,
@@ -270,34 +244,29 @@ export function ScaleLibraryWorkspace() {
     window.localStorage.setItem(
       SCALE_LIBRARY_SESSION_STORAGE_KEY,
       JSON.stringify({
-        selectedRoot,
-        selectedScaleId,
+        selectedRoot: activeSelectedRoot,
+        selectedScaleId: activeSelectedScaleId,
         rootNotationPreference,
         tempoBpm,
         playbackDirection,
       }),
     );
   }, [
-    hasHydratedScaleSession,
-    selectedRoot,
-    selectedScaleId,
+    activeSelectedRoot,
+    activeSelectedScaleId,
     rootNotationPreference,
     tempoBpm,
     playbackDirection,
   ]);
 
   useEffect(() => {
-    if (!hasHydratedScaleSession || !pathname.startsWith("/library/scales")) {
+    if (!pathname.startsWith("/library/scales") || scaleSelectionFromPath) {
       return;
     }
 
-    const expectedPath = buildScaleLibraryPath(selectedRoot, selectedScaleId);
-    if (pathname === expectedPath) {
-      return;
-    }
-
+    const expectedPath = buildScaleLibraryPath(activeSelectedRoot, activeSelectedScaleId);
     router.replace(expectedPath, { scroll: false });
-  }, [hasHydratedScaleSession, pathname, router, selectedRoot, selectedScaleId]);
+  }, [activeSelectedRoot, activeSelectedScaleId, pathname, router, scaleSelectionFromPath]);
 
   useLayoutEffect(() => {
     const scaleList = scaleListRef.current;
@@ -351,7 +320,7 @@ export function ScaleLibraryWorkspace() {
         </div>
         <div className="mt-2 grid grid-cols-4 gap-1 rounded-xl border border-slate-200 bg-white p-1 sm:grid-cols-6 dark:border-slate-800 dark:bg-slate-900">
           {SCALE_ROOT_PITCH_CLASSES.map((root) => {
-            const isSelectedRoot = root === selectedRoot;
+            const isSelectedRoot = root === activeSelectedRoot;
             const rootText = formatMusicText(root, rootNotationPreference);
 
             return (
@@ -360,7 +329,14 @@ export function ScaleLibraryWorkspace() {
                 type="button"
                 aria-label={`Select root ${rootText}`}
                 aria-pressed={isSelectedRoot}
-                onClick={() => setSelectedRoot(root)}
+                onClick={() => {
+                  setSelectedRoot(root);
+                  if (pathname.startsWith("/library/scales")) {
+                    router.replace(buildScaleLibraryPath(root, activeSelectedScaleId), {
+                      scroll: false,
+                    });
+                  }
+                }}
                 className={`h-11 rounded-md px-1.5 text-center text-sm font-semibold transition-colors ${
                   isSelectedRoot
                     ? "bg-sky-100 text-sky-900 dark:bg-sky-900/40 dark:text-sky-100"
@@ -406,15 +382,23 @@ export function ScaleLibraryWorkspace() {
                   {group.title}
                 </p>
                 {group.scales.map((scaleDefinition) => {
-                  const isSelected = scaleDefinition.id === selectedScaleId;
+                  const isSelected = scaleDefinition.id === activeSelectedScaleId;
                   return (
                     <button
-                      key={`${selectedRoot}-${scaleDefinition.id}`}
+                      key={`${activeSelectedRoot}-${scaleDefinition.id}`}
                       type="button"
                       role="option"
                       aria-label={`Select ${selectedRootText} ${scaleDefinition.name} scale`}
                       aria-selected={isSelected}
-                      onClick={() => setSelectedScaleId(scaleDefinition.id)}
+                      onClick={() => {
+                        setSelectedScaleId(scaleDefinition.id);
+                        if (pathname.startsWith("/library/scales")) {
+                          router.replace(
+                            buildScaleLibraryPath(activeSelectedRoot, scaleDefinition.id),
+                            { scroll: false },
+                          );
+                        }
+                      }}
                       className={`mb-1 w-full rounded-lg py-2 pr-3 pl-6 text-left text-sm transition-colors ${
                         isSelected
                           ? "bg-sky-100 font-semibold text-sky-900 dark:bg-sky-900/40 dark:text-sky-100"

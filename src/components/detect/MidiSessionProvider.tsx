@@ -41,12 +41,20 @@ const MIDI_NOTE_TO_KEY_ID = new Map<number, string>(
 
 const MidiSessionContext = createContext<MidiSessionContextValue | null>(null);
 
+function getInitialMidiConnectionState(): MidiConnectionState {
+  return typeof navigator !== "undefined" && typeof navigator.requestMIDIAccess === "function"
+    ? "idle"
+    : "unsupported";
+}
+
 export function MidiSessionProvider({ children }: { children: ReactNode }) {
   const [selectionSource, setSelectionSource] = useState<SelectionSource>("manual");
   const [midiEnabled, setMidiEnabled] = useState(false);
   const [hasEnabledMidiBefore, setHasEnabledMidiBefore] = useState(false);
   const [hasAttemptedMidiEnable, setHasAttemptedMidiEnable] = useState(false);
-  const [midiConnectionState, setMidiConnectionState] = useState<MidiConnectionState>("idle");
+  const [midiConnectionState, setMidiConnectionState] = useState<MidiConnectionState>(
+    getInitialMidiConnectionState,
+  );
   const activeMidiNotesRef = useRef<Set<number>>(new Set<number>());
   const latchedMidiNotesRef = useRef<Set<number>>(new Set<number>());
   const releasedMidiBatchRef = useRef<Set<number>>(new Set<number>());
@@ -86,12 +94,6 @@ export function MidiSessionProvider({ children }: { children: ReactNode }) {
     setSelectionSource("manual");
     clearMidiTrackingState();
   }, [clearMidiTrackingState]);
-
-  useEffect(() => {
-    const midiSupported =
-      typeof navigator !== "undefined" && typeof navigator.requestMIDIAccess === "function";
-    setMidiConnectionState(midiSupported ? "idle" : "unsupported");
-  }, []);
 
   useEffect(() => {
     if (!midiEnabled || typeof navigator.requestMIDIAccess !== "function") {
