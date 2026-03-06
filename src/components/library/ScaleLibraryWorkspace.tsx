@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useScaleAudio } from "@/components/audio/ScaleAudioProvider";
 import { PianoKeyboard } from "@/components/piano/PianoKeyboard";
@@ -56,6 +56,18 @@ type ScaleLibrarySession = {
   tempoBpm: number;
   playbackDirection: ScalePlaybackDirection;
 };
+
+type ScaleLibrarySessionState = ScaleLibrarySession & {
+  hasRestored: boolean;
+};
+
+type ScaleLibrarySessionAction =
+  | { type: "restore"; session: ScaleLibrarySession }
+  | { type: "setSelectedRoot"; selectedRoot: PitchClass }
+  | { type: "setSelectedScaleId"; selectedScaleId: ScaleId }
+  | { type: "toggleRootNotationPreference" }
+  | { type: "setTempoBpm"; tempoBpm: number }
+  | { type: "setPlaybackDirection"; playbackDirection: ScalePlaybackDirection };
 
 let scaleLibrarySessionCache: ScaleLibrarySession | null = null;
 let scaleLibraryListScrollTopCache = 0;
@@ -132,31 +144,59 @@ function normalizeSearchText(value: string): string {
   return value.toLowerCase().replaceAll("♯", "#").replaceAll("♭", "b").trim();
 }
 
+function scaleLibrarySessionReducer(
+  currentSession: ScaleLibrarySessionState,
+  action: ScaleLibrarySessionAction,
+): ScaleLibrarySessionState {
+  switch (action.type) {
+    case "restore":
+      return { ...action.session, hasRestored: true };
+    case "setSelectedRoot":
+      return { ...currentSession, selectedRoot: action.selectedRoot };
+    case "setSelectedScaleId":
+      return { ...currentSession, selectedScaleId: action.selectedScaleId };
+    case "toggleRootNotationPreference":
+      return {
+        ...currentSession,
+        rootNotationPreference: currentSession.rootNotationPreference === "sharps" ? "flats" : "sharps",
+      };
+    case "setTempoBpm":
+      return { ...currentSession, tempoBpm: action.tempoBpm };
+    case "setPlaybackDirection":
+      return { ...currentSession, playbackDirection: action.playbackDirection };
+    default:
+      return currentSession;
+  }
+}
+
 export function ScaleLibraryWorkspace() {
   const { isScalePlaying, playScaleNoteSequence } = useScaleAudio();
   const pathname = usePathname();
   const router = useRouter();
   const scaleSelectionFromPath = useMemo(() => parseScaleLibraryPath(pathname), [pathname]);
-  const persistedScaleLibrarySession = scaleLibrarySessionCache ?? getInitialScaleLibrarySession();
-  const initialScaleLibrarySession = scaleSelectionFromPath
+  const initialScaleSelectionFromPathRef = useRef(scaleSelectionFromPath);
+  const hasCachedSession = scaleLibrarySessionCache !== null;
+  const baseInitialSession = scaleLibrarySessionCache ?? getDefaultScaleLibrarySession();
+  const initialSession = scaleSelectionFromPath
     ? {
-        ...persistedScaleLibrarySession,
+        ...baseInitialSession,
         selectedRoot: scaleSelectionFromPath.root,
         selectedScaleId: scaleSelectionFromPath.scaleId,
       }
-    : persistedScaleLibrarySession;
+    : baseInitialSession;
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedRoot, setSelectedRoot] = useState<PitchClass>(initialScaleLibrarySession.selectedRoot);
-  const [selectedScaleId, setSelectedScaleId] = useState<ScaleId>(
-    initialScaleLibrarySession.selectedScaleId,
-  );
-  const [rootNotationPreference, setRootNotationPreference] = useState<NotationPreference>(
-    initialScaleLibrarySession.rootNotationPreference,
-  );
-  const [tempoBpm, setTempoBpm] = useState(initialScaleLibrarySession.tempoBpm);
-  const [playbackDirection, setPlaybackDirection] = useState<ScalePlaybackDirection>(
-    initialScaleLibrarySession.playbackDirection,
-  );
+  const [session, dispatchSession] = useReducer(scaleLibrarySessionReducer, {
+    ...initialSession,
+    hasRestored: hasCachedSession,
+  });
+  const {
+    selectedRoot,
+    selectedScaleId,
+    rootNotationPreference,
+    tempoBpm,
+    playbackDirection,
+    hasRestored,
+  } = session;
   const scaleListRef = useRef<HTMLDivElement>(null);
   const selectedScaleOptionRef = useRef<HTMLButtonElement | null>(null);
   const activeSelectedRoot = scaleSelectionFromPath?.root ?? selectedRoot;
@@ -222,19 +262,39 @@ export function ScaleLibraryWorkspace() {
       return;
     }
 
-    setSelectedRoot(parsed.note);
+    dispatchSession({ type: "setSelectedRoot", selectedRoot: parsed.note });
     if (pathname.startsWith("/library/scales")) {
       router.replace(buildScaleLibraryPath(parsed.note, activeSelectedScaleId), { scroll: false });
     }
   }, [activeSelectedScaleId, pathname, router]);
 
   const toggleRootNotationPreference = useCallback(() => {
-    setRootNotationPreference((currentPreference) =>
-      currentPreference === "sharps" ? "flats" : "sharps",
-    );
+    dispatchSession({ type: "toggleRootNotationPreference" });
   }, []);
 
   useEffect(() => {
+    if (scaleLibrarySessionCache !== null) {
+      return;
+    }
+
+    const persistedScaleLibrarySession = scaleLibrarySessionCache ?? getInitialScaleLibrarySession();
+    const initialScaleSelectionFromPath = initialScaleSelectionFromPathRef.current;
+    const restoredSession = initialScaleSelectionFromPath
+      ? {
+          ...persistedScaleLibrarySession,
+          selectedRoot: initialScaleSelectionFromPath.root,
+          selectedScaleId: initialScaleSelectionFromPath.scaleId,
+        }
+      : persistedScaleLibrarySession;
+
+    dispatchSession({ type: "restore", session: restoredSession });
+  }, []);
+
+  useEffect(() => {
+    if (!hasRestored) {
+      return;
+    }
+
     scaleLibrarySessionCache = {
       selectedRoot: activeSelectedRoot,
       selectedScaleId: activeSelectedScaleId,
@@ -254,6 +314,7 @@ export function ScaleLibraryWorkspace() {
       }),
     );
   }, [
+    hasRestored,
     activeSelectedRoot,
     activeSelectedScaleId,
     rootNotationPreference,
@@ -347,7 +408,7 @@ export function ScaleLibraryWorkspace() {
                 aria-label={`Select root ${rootText}`}
                 aria-pressed={isSelectedRoot}
                 onClick={() => {
-                  setSelectedRoot(root);
+                  dispatchSession({ type: "setSelectedRoot", selectedRoot: root });
                   if (pathname.startsWith("/library/scales")) {
                     router.replace(buildScaleLibraryPath(root, activeSelectedScaleId), {
                       scroll: false,
@@ -413,7 +474,7 @@ export function ScaleLibraryWorkspace() {
                       aria-label={`Select ${selectedRootText} ${scaleDefinition.name} scale`}
                       aria-selected={isSelected}
                       onClick={() => {
-                        setSelectedScaleId(scaleDefinition.id);
+                        dispatchSession({ type: "setSelectedScaleId", selectedScaleId: scaleDefinition.id });
                         if (pathname.startsWith("/library/scales")) {
                           router.replace(
                             buildScaleLibraryPath(activeSelectedRoot, scaleDefinition.id),
@@ -465,7 +526,12 @@ export function ScaleLibraryWorkspace() {
             Direction
             <select
               value={playbackDirection}
-              onChange={(event) => setPlaybackDirection(event.currentTarget.value as ScalePlaybackDirection)}
+              onChange={(event) =>
+                dispatchSession({
+                  type: "setPlaybackDirection",
+                  playbackDirection: event.currentTarget.value as ScalePlaybackDirection,
+                })
+              }
               className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-800 outline-hidden ring-sky-500 transition focus:ring-2 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
               aria-label="Scale playback direction"
             >
@@ -483,7 +549,12 @@ export function ScaleLibraryWorkspace() {
               max={MAX_TEMPO_BPM}
               step={2}
               value={tempoBpm}
-              onChange={(event) => setTempoBpm(Number(event.currentTarget.value))}
+              onChange={(event) =>
+                dispatchSession({
+                  type: "setTempoBpm",
+                  tempoBpm: Number(event.currentTarget.value),
+                })
+              }
               aria-label="Scale playback tempo"
               className="h-9"
             />
