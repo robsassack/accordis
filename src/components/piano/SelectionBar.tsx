@@ -7,6 +7,9 @@ type SelectionBarProps = {
   onClear: () => void;
   notationPreference: NotationPreference;
   onNotationPreferenceChange: (notationPreference: NotationPreference) => void;
+  midiEnabled: boolean;
+  midiDisabled: boolean;
+  onMidiToggle: () => void;
 };
 
 export function SelectionBar({
@@ -14,21 +17,52 @@ export function SelectionBar({
   onClear,
   notationPreference,
   onNotationPreferenceChange,
+  midiEnabled,
+  midiDisabled,
+  onMidiToggle,
 }: SelectionBarProps) {
   const hasSelectedKeys = selectedKeys.length > 0;
   const isSharps = notationPreference === "sharps";
+  const midiButtonLabel = midiEnabled ? "Disable MIDI" : "Enable MIDI";
   const currentSelectionText = hasSelectedKeys
     ? selectedKeys.map((key) => formatMusicText(key, notationPreference)).join(", ")
     : "None";
 
   return (
-    <div className="flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+    <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <div className="w-full rounded-2xl bg-sky-100 px-4 py-2 text-sm font-medium text-sky-800 dark:bg-sky-950/60 dark:text-sky-200 sm:w-auto sm:rounded-full">
         <span className="block truncate sm:overflow-visible sm:text-clip sm:whitespace-normal">
           Current: {currentSelectionText}
         </span>
       </div>
       <div className="flex items-center justify-end gap-2">
+        <button
+          type="button"
+          onClick={onMidiToggle}
+          aria-label={midiEnabled ? "Disable MIDI input" : "Enable MIDI input"}
+          disabled={midiDisabled}
+          className={`inline-flex h-8 w-32 shrink-0 items-center justify-center gap-1.5 rounded-full border px-3 text-xs leading-none font-semibold transition-colors duration-200 ${
+            midiDisabled
+              ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-600"
+              : midiEnabled
+              ? "border-emerald-300 bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:border-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-200 dark:hover:bg-emerald-900/70"
+              : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+          }`}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+            className="h-3 w-3 fill-current"
+          >
+            <rect x="2" y="4" width="20" height="16" rx="2" />
+            <rect x="4" y="6" width="2.5" height="10" className="fill-white dark:fill-slate-900" />
+            <rect x="7.25" y="6" width="2.5" height="10" className="fill-white dark:fill-slate-900" />
+            <rect x="10.5" y="6" width="2.5" height="10" className="fill-white dark:fill-slate-900" />
+            <rect x="13.75" y="6" width="2.5" height="10" className="fill-white dark:fill-slate-900" />
+            <rect x="17" y="6" width="2.5" height="10" className="fill-white dark:fill-slate-900" />
+          </svg>
+          <span className="whitespace-nowrap">{midiButtonLabel}</span>
+        </button>
         <div className="relative inline-flex h-8 rounded-full border border-slate-300 bg-white p-0.5 dark:border-slate-700 dark:bg-slate-900">
           <span
             aria-hidden="true"
