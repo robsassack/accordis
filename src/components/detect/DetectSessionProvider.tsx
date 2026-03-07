@@ -66,10 +66,10 @@ function setStoredNotationPreference(nextPreference: NotationPreference): void {
 
 export function DetectSessionProvider({ children }: { children: ReactNode }) {
   const [selectedKeys, setSelectedKeys] = useState<string[]>([]);
-  const notationPreference = useSyncExternalStore(
+  const notationPreference = useSyncExternalStore<NotationPreference>(
     subscribeToNotationPreference,
     getStoredNotationPreference,
-    () => "sharps",
+    (): NotationPreference => "sharps",
   );
   const setNotationPreference = useCallback<Dispatch<SetStateAction<NotationPreference>>>((value) => {
     const currentPreference = getStoredNotationPreference();

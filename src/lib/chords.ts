@@ -206,10 +206,6 @@ export function formatChordInversionLabel(
   chordDefinition: ChordDefinition,
 ): string {
   const inversionCount = chordDefinition.intervals.length;
-  if (inversionCount === 0) {
-    return "Root position";
-  }
-
   const normalizedInversion = ((inversionIndex % inversionCount) + inversionCount) % inversionCount;
   if (normalizedInversion === 0) {
     return "Root position";
@@ -277,7 +273,7 @@ export function formatChordLabel(root: PitchClass, chordDefinition: ChordDefinit
 }
 
 export function buildChordSearchText(root: PitchClass, chordDefinition: ChordDefinition): string {
-  const aliases = chordDefinition.aliases?.join(" ") ?? "";
+  const aliases = ("aliases" in chordDefinition ? chordDefinition.aliases : undefined)?.join(" ") ?? "";
   const sharpRoot = root;
   const flatRoot = applyNotationPreference(root, "flats");
   const sharpSymbol = `${sharpRoot}${chordDefinition.suffix}`;

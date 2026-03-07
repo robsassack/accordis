@@ -217,7 +217,7 @@ export function ChordLibraryWorkspace() {
   const chordListRef = useRef<HTMLDivElement>(null);
   const selectedChordOptionRef = useRef<HTMLButtonElement | null>(null);
   const hasPendingInteractionSelectionOverride =
-    Boolean(interactionSelectionOverride) &&
+    interactionSelectionOverride !== null &&
     pathname.startsWith("/library/chords") &&
     (!chordSelectionFromPath ||
       chordSelectionFromPath.root !== interactionSelectionOverride.root ||
@@ -232,8 +232,7 @@ export function ChordLibraryWorkspace() {
       : chordSelectionFromPath?.chordId ?? selectedChordId;
   const selectedChordDefinition = getChordDefinitionById(activeSelectedChordId);
   const inversionCount = selectedChordDefinition.intervals.length;
-  const activeInversionIndex =
-    inversionCount === 0 ? 0 : ((inversionIndex % inversionCount) + inversionCount) % inversionCount;
+  const activeInversionIndex = ((inversionIndex % inversionCount) + inversionCount) % inversionCount;
   const activePlaybackOctave = clampPlaybackOctave(playbackOctave);
   const inversionLabel = formatChordInversionLabel(activeInversionIndex, selectedChordDefinition);
   const visibleKeyboardRange = useMemo(() => {
@@ -662,10 +661,7 @@ export function ChordLibraryWorkspace() {
                   onClick={() =>
                     dispatchSession({
                       type: "setInversionIndex",
-                      inversionIndex:
-                        inversionCount === 0
-                          ? 0
-                          : (activeInversionIndex - 1 + inversionCount) % inversionCount,
+                      inversionIndex: (activeInversionIndex - 1 + inversionCount) % inversionCount,
                     })
                   }
                   className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
@@ -681,10 +677,7 @@ export function ChordLibraryWorkspace() {
                   onClick={() =>
                     dispatchSession({
                       type: "setInversionIndex",
-                      inversionIndex:
-                        inversionCount === 0
-                          ? 0
-                          : (activeInversionIndex + 1) % inversionCount,
+                      inversionIndex: (activeInversionIndex + 1) % inversionCount,
                     })
                   }
                   className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700"
