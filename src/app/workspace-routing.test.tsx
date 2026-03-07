@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import WorkspaceLayout from "@/app/(workspace)/layout";
 import { DetectWorkspace } from "@/components/detect/DetectWorkspace";
+import { resetChordLibrarySessionCacheForTests } from "@/components/library/ChordLibraryWorkspace";
 import { LibraryContent } from "@/components/library/LibraryContent";
 import { resetScaleLibrarySessionCacheForTests } from "@/components/library/ScaleLibraryWorkspace";
 
@@ -45,6 +46,7 @@ describe("Workspace routing persistence", () => {
     pathnameState.current = "/detect";
     replaceState.replace.mockReset();
     localStorage.clear();
+    resetChordLibrarySessionCacheForTests();
     resetScaleLibrarySessionCacheForTests();
   });
 
@@ -149,6 +151,36 @@ describe("Workspace routing persistence", () => {
     });
   });
 
+  it("loads a chord directly from a per-chord path", async () => {
+    pathnameState.current = "/library/chords/d-sharp/major7";
+    render(<WorkspaceHarness />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "D♯ Major 7" })).toBeInTheDocument();
+    });
+  });
+
+  it("keeps saved chord shift and inversion settings when loading a per-chord path", async () => {
+    localStorage.setItem(
+      "accordis-chord-library-session",
+      JSON.stringify({
+        selectedRoot: "C",
+        selectedChordId: "major",
+        rootNotationPreference: "sharps",
+        playbackOctave: 5,
+        inversionIndex: 2,
+      }),
+    );
+    pathnameState.current = "/library/chords/d-sharp/major7";
+    render(<WorkspaceHarness />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "D♯ Major 7" })).toBeInTheDocument();
+    });
+    expect(screen.getByText("2nd inversion")).toBeInTheDocument();
+    expect(screen.getByText("Voicing: A♯4, D5, D♯5, G5")).toBeInTheDocument();
+  });
+
   it("keeps persisted tempo and direction when loading a per-scale path", async () => {
     localStorage.setItem(
       "accordis-scale-library-session",
@@ -227,6 +259,17 @@ describe("Workspace routing persistence", () => {
 
     await waitFor(() => {
       expect(replaceState.replace).toHaveBeenCalledWith("/library/scales/c/major", {
+        scroll: false,
+      });
+    });
+  });
+
+  it("canonicalizes invalid per-chord paths back to the selected chord path", async () => {
+    pathnameState.current = "/library/chords/invalid-root/major";
+    render(<WorkspaceHarness />);
+
+    await waitFor(() => {
+      expect(replaceState.replace).toHaveBeenCalledWith("/library/chords/c/major", {
         scroll: false,
       });
     });
