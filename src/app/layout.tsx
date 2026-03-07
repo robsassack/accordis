@@ -15,6 +15,17 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Accordis",
   description: "A chord builder and visualizer for musicians.",
+  icons: {
+    icon: [
+      { url: "/logo_light.png", media: "(prefers-color-scheme: light)", type: "image/png" },
+      { url: "/logo_dark.png", media: "(prefers-color-scheme: dark)", type: "image/png" },
+    ],
+    shortcut: [
+      { url: "/logo_light.png", media: "(prefers-color-scheme: light)", type: "image/png" },
+      { url: "/logo_dark.png", media: "(prefers-color-scheme: dark)", type: "image/png" },
+    ],
+    apple: "/logo_light.png",
+  },
 };
 
 const themeScript = `

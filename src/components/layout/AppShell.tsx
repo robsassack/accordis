@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import type { ReactNode } from "react";
 import { ModeSwitcher } from "@/components/navigation/ModeSwitcher";
 import { useThemePreference } from "@/lib/use-theme-preference";
@@ -17,9 +18,31 @@ export function AppShell({ activeMode, libraryHref = "/library/scales", children
     <main className="min-h-screen bg-linear-to-b from-slate-100 via-white to-sky-50 px-6 py-12 text-slate-900 transition-colors dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 dark:text-slate-100">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-10">
         <header className="flex items-center justify-between gap-4">
-          <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
-            Accordis
-          </p>
+          <div className="flex items-center gap-3">
+            <Image
+              src="/logo_light.png"
+              alt=""
+              width={28}
+              height={28}
+              className="h-7 w-7 dark:hidden"
+              aria-hidden="true"
+              unoptimized
+              priority
+            />
+            <Image
+              src="/logo_dark.png"
+              alt=""
+              width={28}
+              height={28}
+              className="hidden h-7 w-7 dark:block"
+              aria-hidden="true"
+              unoptimized
+              priority
+            />
+            <p className="text-sm font-medium uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
+              Accordis
+            </p>
+          </div>
           <button
             type="button"
             onClick={toggleTheme}
