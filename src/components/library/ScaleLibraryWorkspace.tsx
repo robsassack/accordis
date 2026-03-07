@@ -140,6 +140,21 @@ function getInitialScaleLibrarySession(): ScaleLibrarySession {
   }
 }
 
+function centerElementWithinScrollContainer(
+  scrollContainer: HTMLElement,
+  element: HTMLElement,
+): void {
+  const scrollContainerRect = scrollContainer.getBoundingClientRect();
+  const elementRect = element.getBoundingClientRect();
+  const maxScrollTop = Math.max(0, scrollContainer.scrollHeight - scrollContainer.clientHeight);
+  const targetScrollTop =
+    scrollContainer.scrollTop +
+    (elementRect.top - scrollContainerRect.top) -
+    (scrollContainer.clientHeight / 2 - element.clientHeight / 2);
+
+  scrollContainer.scrollTop = Math.max(0, Math.min(targetScrollTop, maxScrollTop));
+}
+
 function normalizeSearchText(value: string): string {
   return value.toLowerCase().replaceAll("♯", "#").replaceAll("♭", "b").trim();
 }
@@ -347,11 +362,11 @@ export function ScaleLibraryWorkspace() {
     }
 
     const selectedScaleOption = selectedScaleOptionRef.current;
-    if (!selectedScaleOption || typeof selectedScaleOption.scrollIntoView !== "function") {
+    if (!selectedScaleOption) {
       return;
     }
 
-    selectedScaleOption.scrollIntoView({ block: "center" });
+    centerElementWithinScrollContainer(scaleList, selectedScaleOption);
     scaleLibraryListScrollTopCache = scaleList.scrollTop;
   }, [activeSelectedScaleId, activeSelectedRoot, pathname, scaleSelectionFromPath]);
 
@@ -577,6 +592,7 @@ export function ScaleLibraryWorkspace() {
           secondaryMissingKeyId={null}
           onKeyClick={handleKeyboardKeyClick}
           notationPreference={displayNotationPreference}
+          scrollCacheKey="library-scales"
         />
         <p className="text-xs text-slate-500 dark:text-slate-400">
           Accidentals automatically follow the selected scale context.

@@ -151,6 +151,21 @@ function getInitialChordLibrarySession(): ChordLibrarySession {
   }
 }
 
+function centerElementWithinScrollContainer(
+  scrollContainer: HTMLElement,
+  element: HTMLElement,
+): void {
+  const scrollContainerRect = scrollContainer.getBoundingClientRect();
+  const elementRect = element.getBoundingClientRect();
+  const maxScrollTop = Math.max(0, scrollContainer.scrollHeight - scrollContainer.clientHeight);
+  const targetScrollTop =
+    scrollContainer.scrollTop +
+    (elementRect.top - scrollContainerRect.top) -
+    (scrollContainer.clientHeight / 2 - element.clientHeight / 2);
+
+  scrollContainer.scrollTop = Math.max(0, Math.min(targetScrollTop, maxScrollTop));
+}
+
 function normalizeSearchText(value: string): string {
   return value.toLowerCase().replaceAll("♯", "#").replaceAll("♭", "b").trim();
 }
@@ -446,11 +461,11 @@ export function ChordLibraryWorkspace() {
     }
 
     const selectedChordOption = selectedChordOptionRef.current;
-    if (!selectedChordOption || typeof selectedChordOption.scrollIntoView !== "function") {
+    if (!selectedChordOption) {
       return;
     }
 
-    selectedChordOption.scrollIntoView({ block: "center" });
+    centerElementWithinScrollContainer(chordList, selectedChordOption);
     chordLibraryListScrollTopCache = chordList.scrollTop;
   }, [activeSelectedChordId, activeSelectedRoot, pathname, chordSelectionFromPath]);
 
@@ -723,6 +738,7 @@ export function ChordLibraryWorkspace() {
           secondaryMissingKeyId={null}
           onKeyClick={handleKeyboardKeyClick}
           notationPreference={rootNotationPreference}
+          scrollCacheKey="library-chords"
         />
         <p className="text-xs text-slate-500 dark:text-slate-400">
           Chord-tone highlights follow the selected root and quality.

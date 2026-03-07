@@ -202,7 +202,7 @@ describe("Workspace routing persistence", () => {
     expect(screen.getByRole("slider", { name: "Scale playback tempo" })).toHaveValue("120");
   });
 
-  it("scrolls selected scale into view when loading a per-scale path without saved list scroll", async () => {
+  it("centers selected scale within the list without using native scrollIntoView", async () => {
     const originalScrollIntoView = HTMLElement.prototype.scrollIntoView;
     const scrollIntoViewMock = vi.fn();
     Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
@@ -218,7 +218,7 @@ describe("Workspace routing persistence", () => {
       await waitFor(() => {
         expect(screen.getByRole("heading", { name: "C Diminished (Whole-Half)" })).toBeInTheDocument();
       });
-      expect(scrollIntoViewMock).toHaveBeenCalled();
+      expect(scrollIntoViewMock).not.toHaveBeenCalled();
     } finally {
       if (typeof originalScrollIntoView === "function") {
         Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {

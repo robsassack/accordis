@@ -1,5 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import { formatMusicText, type NotationPreference, type PianoKey } from "@/lib/piano";
+
+const keyboardHorizontalScrollCache = new Map<string, number>();
+const keyboardScrollHintVisibilityCache = new Map<string, boolean>();
+
+export function resetPianoKeyboardUiCachesForTests(): void {
+  keyboardHorizontalScrollCache.clear();
+  keyboardScrollHintVisibilityCache.clear();
+}
 
 type PianoKeyboardProps = {
   keys: PianoKey[];
@@ -10,6 +18,7 @@ type PianoKeyboardProps = {
   notationPreference: NotationPreference;
   blackKeyWidthPercent?: number;
   blackKeyGapReductionPx?: number;
+  scrollCacheKey?: string;
 };
 
 export function PianoKeyboard({
@@ -21,13 +30,23 @@ export function PianoKeyboard({
   notationPreference,
   blackKeyWidthPercent = 4.8,
   blackKeyGapReductionPx = 2.5,
+  scrollCacheKey,
 }: PianoKeyboardProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const showScrollHintRef = useRef(true);
   const [showLeftFade, setShowLeftFade] = useState(false);
   const [showRightFade, setShowRightFade] = useState(false);
-  const [showScrollHint, setShowScrollHint] = useState(true);
+  const [showScrollHint, setShowScrollHint] = useState(() =>
+    scrollCacheKey ? (keyboardScrollHintVisibilityCache.get(scrollCacheKey) ?? true) : true,
+  );
   const selectedKeySet = useMemo(() => new Set(selectedKeys), [selectedKeys]);
+  const keyButtonStyle = useMemo(
+    () => ({
+      WebkitTapHighlightColor: "transparent",
+      touchAction: "manipulation" as const,
+    }),
+    [],
+  );
   const whiteKeys = useMemo(() => keys.filter((key) => !key.isSharp), [keys]);
   const blackKeys = useMemo(() => {
     const whiteKeyCount = whiteKeys.length;
@@ -71,9 +90,41 @@ export function PianoKeyboard({
 
   useEffect(() => {
     showScrollHintRef.current = showScrollHint;
-  }, [showScrollHint]);
+    if (scrollCacheKey) {
+      keyboardScrollHintVisibilityCache.set(scrollCacheKey, showScrollHint);
+    }
+  }, [showScrollHint, scrollCacheKey]);
 
   useEffect(() => {
+    if (!scrollCacheKey) {
+      return;
+    }
+
+    const cachedShowScrollHint = keyboardScrollHintVisibilityCache.get(scrollCacheKey);
+    if (typeof cachedShowScrollHint !== "boolean") {
+      return;
+    }
+
+    setShowScrollHint(cachedShowScrollHint);
+    showScrollHintRef.current = cachedShowScrollHint;
+  }, [scrollCacheKey]);
+
+  useLayoutEffect(() => {
+    if (!scrollCacheKey) {
+      return;
+    }
+
+    const container = scrollContainerRef.current;
+    const cachedScrollLeft = keyboardHorizontalScrollCache.get(scrollCacheKey);
+    if (!container || typeof cachedScrollLeft !== "number") {
+      return;
+    }
+
+    const maxScrollLeft = Math.max(0, container.scrollWidth - container.clientWidth);
+    container.scrollLeft = Math.max(0, Math.min(cachedScrollLeft, maxScrollLeft));
+  }, [keys.length, scrollCacheKey]);
+
+  useLayoutEffect(() => {
     const container = scrollContainerRef.current;
     if (!container) {
       return;
@@ -89,6 +140,9 @@ export function PianoKeyboard({
       const edgeTolerancePx = 2;
       setShowLeftFade(currentContainer.scrollLeft > edgeTolerancePx);
       setShowRightFade(currentContainer.scrollLeft < maxScrollLeft - edgeTolerancePx);
+      if (scrollCacheKey) {
+        keyboardHorizontalScrollCache.set(scrollCacheKey, currentContainer.scrollLeft);
+      }
 
       if (currentContainer.scrollLeft > 8 && showScrollHintRef.current) {
         showScrollHintRef.current = false;
@@ -101,10 +155,52 @@ export function PianoKeyboard({
     window.addEventListener("resize", updateFadeVisibility);
 
     return () => {
+      if (scrollCacheKey) {
+        keyboardHorizontalScrollCache.set(scrollCacheKey, container.scrollLeft);
+      }
       container.removeEventListener("scroll", updateFadeVisibility);
       window.removeEventListener("resize", updateFadeVisibility);
     };
-  }, [keys.length]);
+  }, [keys.length, scrollCacheKey]);
+
+  const preserveHorizontalScroll = useCallback(() => {
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer) {
+      return () => {};
+    }
+
+    const preservedContainerScrollLeft = scrollContainer.scrollLeft;
+    const preservedWindowScrollX = window.scrollX;
+
+    return () => {
+      window.requestAnimationFrame(() => {
+        const nextScrollContainer = scrollContainerRef.current;
+        if (nextScrollContainer) {
+          nextScrollContainer.scrollLeft = preservedContainerScrollLeft;
+          if (scrollCacheKey) {
+            keyboardHorizontalScrollCache.set(scrollCacheKey, preservedContainerScrollLeft);
+          }
+        }
+
+        if (window.scrollX !== preservedWindowScrollX) {
+          window.scrollTo({ left: preservedWindowScrollX, top: window.scrollY });
+        }
+      });
+    };
+  }, [scrollCacheKey]);
+
+  const handleKeyMouseDown = useCallback((event: MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+  }, []);
+
+  const handleKeyClick = useCallback(
+    (keyId: string) => {
+      const restoreHorizontalScroll = preserveHorizontalScroll();
+      onKeyClick(keyId);
+      restoreHorizontalScroll();
+    },
+    [onKeyClick, preserveHorizontalScroll],
+  );
 
   return (
     <div className="relative pb-2">
@@ -144,15 +240,17 @@ export function PianoKeyboard({
                   data-missing={isMissing ? "true" : undefined}
                   data-missing-primary={isPrimaryMissing ? "true" : undefined}
                   data-missing-secondary={isSecondaryMissing ? "true" : undefined}
-                  onClick={() => onKeyClick(id)}
-                  className={`relative h-full flex-1 rounded-b-md border border-slate-300 pb-3 text-xs font-medium transition dark:border-slate-700 ${
+                  onMouseDown={handleKeyMouseDown}
+                  onClick={() => handleKeyClick(id)}
+                  style={keyButtonStyle}
+                  className={`relative h-full flex-1 rounded-b-md border border-slate-300 pb-3 text-xs font-medium transition-none outline-none dark:border-slate-700 ${
                     isSelected
                       ? "bg-sky-100 text-sky-900 dark:bg-sky-900/50 dark:text-sky-100"
                       : isPrimaryMissing
                         ? "bg-amber-200 text-amber-900 ring-2 ring-inset ring-amber-400 dark:bg-amber-700/50 dark:text-amber-100 dark:ring-amber-500"
                       : isSecondaryMissing
                         ? "bg-amber-100 text-amber-700 ring-1 ring-inset ring-amber-300 dark:bg-amber-900/30 dark:text-amber-300 dark:ring-amber-700"
-                      : "bg-white text-slate-700 hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+                      : "bg-white text-slate-700 dark:bg-slate-900 dark:text-slate-200"
                   }`}
                   aria-label={`Select ${formattedKeyLabels.get(id)}`}
                 >
@@ -179,17 +277,20 @@ export function PianoKeyboard({
                 data-missing={isMissing ? "true" : undefined}
                 data-missing-primary={isPrimaryMissing ? "true" : undefined}
                 data-missing-secondary={isSecondaryMissing ? "true" : undefined}
-                onClick={() => onKeyClick(id)}
-                className={`absolute z-10 h-28 rounded-b-md border-x border-b border-slate-900 text-[10px] font-medium text-white transition dark:border-slate-950 sm:mt-1 sm:h-35 ${
+                onMouseDown={handleKeyMouseDown}
+                onClick={() => handleKeyClick(id)}
+                className={`absolute z-10 h-28 rounded-b-md border-x border-b border-slate-900 text-[10px] font-medium text-white transition-none outline-none dark:border-slate-950 sm:mt-1 sm:h-35 ${
                   isSelected
                     ? "bg-sky-700 dark:bg-sky-600"
                     : isPrimaryMissing
                       ? "bg-amber-500 text-amber-950 ring-2 ring-amber-300 dark:bg-amber-400 dark:text-amber-950 dark:ring-amber-200"
                     : isSecondaryMissing
                       ? "bg-amber-700 text-amber-100 ring-1 ring-amber-500 dark:bg-amber-800 dark:text-amber-200 dark:ring-amber-600"
-                      : "bg-slate-900 hover:bg-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700"
+                      : "bg-slate-900 dark:bg-slate-800"
                 }`}
                 style={{
+                  WebkitTapHighlightColor: "transparent",
+                  touchAction: "manipulation",
                   left: `calc(${left}% - ${blackKeyGapReductionPx}px)`,
                   width: `calc(${blackKeyWidthPercent}% + ${blackKeyGapReductionPx * 2}px)`,
                 }}
