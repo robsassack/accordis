@@ -2,6 +2,10 @@
 
 Accordis is an interactive music theory workspace with a chord detector, scale library, and chord library.
 
+## Preview
+
+![Accordis Demo](./public/readme/screenshot.png)
+
 ## Features
 
 - Detect mode: click keys or use MIDI input to detect chords in real time.
