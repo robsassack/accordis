@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { withBasePath } from "@/lib/base-path";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -17,14 +18,14 @@ export const metadata: Metadata = {
   description: "A chord builder and visualizer for musicians.",
   icons: {
     icon: [
-      { url: "/logo_light.png", media: "(prefers-color-scheme: light)", type: "image/png" },
-      { url: "/logo_dark.png", media: "(prefers-color-scheme: dark)", type: "image/png" },
+      { url: withBasePath("/logo_light.png"), media: "(prefers-color-scheme: light)", type: "image/png" },
+      { url: withBasePath("/logo_dark.png"), media: "(prefers-color-scheme: dark)", type: "image/png" },
     ],
     shortcut: [
-      { url: "/logo_light.png", media: "(prefers-color-scheme: light)", type: "image/png" },
-      { url: "/logo_dark.png", media: "(prefers-color-scheme: dark)", type: "image/png" },
+      { url: withBasePath("/logo_light.png"), media: "(prefers-color-scheme: light)", type: "image/png" },
+      { url: withBasePath("/logo_dark.png"), media: "(prefers-color-scheme: dark)", type: "image/png" },
     ],
-    apple: "/logo_light.png",
+    apple: withBasePath("/logo_light.png"),
   },
 };
 

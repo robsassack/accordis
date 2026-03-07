@@ -3,6 +3,7 @@
 import Image from "next/image";
 import type { ReactNode } from "react";
 import { ModeSwitcher } from "@/components/navigation/ModeSwitcher";
+import { withBasePath } from "@/lib/base-path";
 import { useThemePreference } from "@/lib/use-theme-preference";
 
 type AppShellProps = {
@@ -20,7 +21,7 @@ export function AppShell({ activeMode, libraryHref = "/library/scales", children
         <header className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Image
-              src="/logo_light.png"
+              src={withBasePath("/logo_light.png")}
               alt=""
               width={28}
               height={28}
@@ -30,7 +31,7 @@ export function AppShell({ activeMode, libraryHref = "/library/scales", children
               priority
             />
             <Image
-              src="/logo_dark.png"
+              src={withBasePath("/logo_dark.png")}
               alt=""
               width={28}
               height={28}

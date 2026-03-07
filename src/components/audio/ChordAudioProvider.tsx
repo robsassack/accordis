@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { withBasePath } from "@/lib/base-path";
 import { parseKeyId } from "@/lib/piano";
 
 const CHORD_STRUM_STEP_SECONDS = 0.05;
@@ -105,7 +106,7 @@ export function ChordAudioProvider({ children }: { children: ReactNode }) {
       if (!chordSamplerRef.current) {
         chordSamplerRef.current = new Tone.Sampler({
           urls: UPRIGHT_PIANO_SAMPLE_URLS,
-          baseUrl: "/samples/upright-piano-kw/",
+          baseUrl: withBasePath("/samples/upright-piano-kw/"),
           attack: 0.02,
           release: 1.5,
         });

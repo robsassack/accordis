@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { withBasePath } from "@/lib/base-path";
 
 const UPRIGHT_PIANO_SAMPLE_URLS = {
   A3: "A3vH.wav",
@@ -92,7 +93,7 @@ export function ScaleAudioProvider({ children }: { children: ReactNode }) {
       if (!scaleSamplerRef.current) {
         scaleSamplerRef.current = new Tone.Sampler({
           urls: UPRIGHT_PIANO_SAMPLE_URLS,
-          baseUrl: "/samples/upright-piano-kw/",
+          baseUrl: withBasePath("/samples/upright-piano-kw/"),
           attack: 0.01,
           release: 1.2,
         });
