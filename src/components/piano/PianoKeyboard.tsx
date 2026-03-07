@@ -22,6 +22,12 @@ type PianoKeyboardProps = {
 };
 
 export function PianoKeyboard({
+  ...props
+}: PianoKeyboardProps) {
+  return <PianoKeyboardContent key={props.scrollCacheKey ?? "__default"} {...props} />;
+}
+
+function PianoKeyboardContent({
   keys,
   selectedKeys,
   primaryMissingKeyId,
@@ -94,20 +100,6 @@ export function PianoKeyboard({
       keyboardScrollHintVisibilityCache.set(scrollCacheKey, showScrollHint);
     }
   }, [showScrollHint, scrollCacheKey]);
-
-  useEffect(() => {
-    if (!scrollCacheKey) {
-      return;
-    }
-
-    const cachedShowScrollHint = keyboardScrollHintVisibilityCache.get(scrollCacheKey);
-    if (typeof cachedShowScrollHint !== "boolean") {
-      return;
-    }
-
-    setShowScrollHint(cachedShowScrollHint);
-    showScrollHintRef.current = cachedShowScrollHint;
-  }, [scrollCacheKey]);
 
   useLayoutEffect(() => {
     if (!scrollCacheKey) {
