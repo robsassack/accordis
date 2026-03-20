@@ -131,6 +131,46 @@ export function DetectedResults({
     "lower",
   ];
   const activeModeIndex = displayModeOrder.indexOf(displayMode);
+  const indicatorTrackRef = useRef<HTMLSpanElement>(null);
+  const [indicatorSegmentWidthPx, setIndicatorSegmentWidthPx] = useState(0);
+  const [indicatorMaxTranslatePx, setIndicatorMaxTranslatePx] = useState(0);
+
+  useLayoutEffect(() => {
+    const trackElement = indicatorTrackRef.current;
+    if (!trackElement) return;
+
+    const updateIndicatorGeometry = (): void => {
+      const trackWidthPx = trackElement.clientWidth;
+      if (trackWidthPx <= 0) return;
+      const segmentWidthPx = Math.round(trackWidthPx / displayModeOrder.length);
+      const maxTranslatePx = Math.max(0, trackWidthPx - segmentWidthPx);
+      setIndicatorSegmentWidthPx((previous) =>
+        previous === segmentWidthPx ? previous : segmentWidthPx,
+      );
+      setIndicatorMaxTranslatePx((previous) =>
+        previous === maxTranslatePx ? previous : maxTranslatePx,
+      );
+    };
+
+    updateIndicatorGeometry();
+
+    if (typeof ResizeObserver === "function") {
+      const observer = new ResizeObserver(updateIndicatorGeometry);
+      observer.observe(trackElement);
+      return () => observer.disconnect();
+    }
+
+    window.addEventListener("resize", updateIndicatorGeometry);
+    return () => window.removeEventListener("resize", updateIndicatorGeometry);
+  }, [displayModeOrder.length]);
+
+  const hasMeasuredIndicatorGeometry = indicatorSegmentWidthPx > 0;
+  const indicatorTranslatePx = hasMeasuredIndicatorGeometry
+    ? Math.round((indicatorMaxTranslatePx * activeModeIndex) / (displayModeOrder.length - 1))
+    : 0;
+  const indicatorTransform = hasMeasuredIndicatorGeometry
+    ? `translate3d(${indicatorTranslatePx}px, 0, 0)`
+    : `translateX(${activeModeIndex * 100}%)`;
   const extensionByQuality: Record<ChordMatch["quality"], "Triad" | "7th" | "9th"> = {
     major: "Triad",
     minor: "Triad",
@@ -170,18 +210,22 @@ export function DetectedResults({
           role="group"
           aria-label="Staff position controls"
         >
-          <span
-            aria-hidden
-            className="pointer-events-none absolute inset-y-1 left-1 z-0 w-[calc((100%-0.5rem)/4)] rounded-md bg-slate-800 transition-transform duration-200 ease-out dark:bg-slate-100"
-            style={{ transform: `translateX(${activeModeIndex * 100}%)` }}
-          />
+          <span ref={indicatorTrackRef} aria-hidden className="pointer-events-none absolute inset-1 z-0">
+            <span
+              className="block h-full w-1/4 rounded-md bg-slate-800 transition-transform duration-200 ease-out dark:bg-slate-100"
+              style={{
+                width: hasMeasuredIndicatorGeometry ? `${indicatorSegmentWidthPx}px` : "25%",
+                transform: indicatorTransform,
+              }}
+            />
+          </span>
           <button
             type="button"
             aria-label="+8va"
             className={`relative z-10 inline-flex h-7 items-center justify-center rounded-md px-2 py-1 text-xs font-medium leading-none transition-colors duration-150 ${
               displayMode === "upper"
                 ? "text-white dark:text-slate-900"
-                : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                : "text-slate-600 hover:text-slate-800 dark:text-slate-300 dark:hover:text-slate-100"
             }`}
             onClick={() => setDisplayMode("upper")}
             aria-pressed={displayMode === "upper"}
@@ -197,7 +241,7 @@ export function DetectedResults({
             className={`relative z-10 inline-flex h-7 items-center justify-center rounded-md px-2 py-1 text-xs font-medium leading-none transition-colors duration-150 ${
               displayMode === "treble"
                 ? "text-white dark:text-slate-900"
-                : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                : "text-slate-600 hover:text-slate-800 dark:text-slate-300 dark:hover:text-slate-100"
             }`}
             onClick={() => setDisplayMode("treble")}
             aria-pressed={displayMode === "treble"}
@@ -210,7 +254,7 @@ export function DetectedResults({
             className={`relative z-10 inline-flex h-7 items-center justify-center rounded-md px-2 py-1 text-xs font-medium leading-none transition-colors duration-150 ${
               displayMode === "bass"
                 ? "text-white dark:text-slate-900"
-                : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                : "text-slate-600 hover:text-slate-800 dark:text-slate-300 dark:hover:text-slate-100"
             }`}
             onClick={() => setDisplayMode("bass")}
             aria-pressed={displayMode === "bass"}
@@ -223,7 +267,7 @@ export function DetectedResults({
             className={`relative z-10 inline-flex h-7 items-center justify-center rounded-md px-2 py-1 text-xs font-medium leading-none transition-colors duration-150 ${
               displayMode === "lower"
                 ? "text-white dark:text-slate-900"
-                : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                : "text-slate-600 hover:text-slate-800 dark:text-slate-300 dark:hover:text-slate-100"
             }`}
             onClick={() => setDisplayMode("lower")}
             aria-pressed={displayMode === "lower"}
