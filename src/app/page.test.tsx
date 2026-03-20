@@ -227,6 +227,51 @@ describe("Detect workspace route", () => {
     expect(screen.getAllByText("Triad").length).toBeGreaterThan(0);
   });
 
+  it("allows switching detected chord notation positions", async () => {
+    const user = userEvent.setup();
+
+    renderDetectRoute();
+
+    await user.click(screen.getByRole("button", { name: "Clear selected keys" }));
+    await user.click(screen.getByRole("button", { name: "Select C4" }));
+    await user.click(screen.getByRole("button", { name: "Select E4" }));
+    await user.click(screen.getByRole("button", { name: "Select G4" }));
+
+    const upOctaveButton = screen.getByRole("button", { name: "+8va" });
+    const trebleButton = screen.getByRole("button", { name: "Treble" });
+    const bassButton = screen.getByRole("button", { name: "Bass" });
+    const downOctaveButton = screen.getByRole("button", { name: "-8va" });
+
+    expect(upOctaveButton).toHaveAttribute("aria-pressed", "false");
+    expect(trebleButton).toHaveAttribute("aria-pressed", "true");
+    expect(bassButton).toHaveAttribute("aria-pressed", "false");
+    expect(downOctaveButton).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(upOctaveButton);
+    expect(upOctaveButton).toHaveAttribute("aria-pressed", "true");
+    expect(trebleButton).toHaveAttribute("aria-pressed", "false");
+    expect(bassButton).toHaveAttribute("aria-pressed", "false");
+    expect(downOctaveButton).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(bassButton);
+    expect(upOctaveButton).toHaveAttribute("aria-pressed", "false");
+    expect(trebleButton).toHaveAttribute("aria-pressed", "false");
+    expect(bassButton).toHaveAttribute("aria-pressed", "true");
+    expect(downOctaveButton).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(downOctaveButton);
+    expect(downOctaveButton).toHaveAttribute("aria-pressed", "true");
+    expect(upOctaveButton).toHaveAttribute("aria-pressed", "false");
+    expect(trebleButton).toHaveAttribute("aria-pressed", "false");
+    expect(bassButton).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(trebleButton);
+    expect(trebleButton).toHaveAttribute("aria-pressed", "true");
+    expect(bassButton).toHaveAttribute("aria-pressed", "false");
+    expect(upOctaveButton).toHaveAttribute("aria-pressed", "false");
+    expect(downOctaveButton).toHaveAttribute("aria-pressed", "false");
+  });
+
   it("shows altered badge for altered-fifth chord detections", async () => {
     const user = userEvent.setup();
 

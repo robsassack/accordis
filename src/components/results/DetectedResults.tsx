@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { MIN_UNIQUE_NOTES_FOR_CHORD } from "@/lib/chord-detect";
 import type { ChordMatch, IntervalMatch } from "@/lib/chord-types";
 import { formatMusicText, type NotationPreference, type PitchClass } from "@/lib/piano";
+import { ChordNotation } from "@/components/results/ChordNotation";
 
 type PartialBadgeHighlight = {
   badgeId: string;
@@ -122,6 +123,14 @@ export function DetectedResults({
 }: DetectedResultsProps) {
   const helperMessageClassName = "text-sm text-slate-600 dark:text-slate-400";
   const [openBadgeId, setOpenBadgeId] = useState<string | null>(null);
+  const [displayMode, setDisplayMode] = useState<"upper" | "treble" | "bass" | "lower">("treble");
+  const displayModeOrder: Array<"upper" | "treble" | "bass" | "lower"> = [
+    "upper",
+    "treble",
+    "bass",
+    "lower",
+  ];
+  const activeModeIndex = displayModeOrder.indexOf(displayMode);
   const extensionByQuality: Record<ChordMatch["quality"], "Triad" | "7th" | "9th"> = {
     major: "Triad",
     minor: "Triad",
@@ -154,7 +163,78 @@ export function DetectedResults({
 
   return (
     <div className="mt-6 border-t border-slate-200 pt-6 dark:border-slate-800">
-      <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Detected Chords</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Detected Chords</h2>
+        <div
+          className="relative inline-grid grid-cols-4 overflow-hidden rounded-lg border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900"
+          role="group"
+          aria-label="Staff position controls"
+        >
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-y-1 left-1 z-0 w-[calc((100%-0.5rem)/4)] rounded-md bg-slate-800 transition-transform duration-200 ease-out dark:bg-slate-100"
+            style={{ transform: `translateX(${activeModeIndex * 100}%)` }}
+          />
+          <button
+            type="button"
+            aria-label="+8va"
+            className={`relative z-10 inline-flex h-7 items-center justify-center rounded-md px-2 py-1 text-xs font-medium leading-none transition-colors duration-150 ${
+              displayMode === "upper"
+                ? "text-white dark:text-slate-900"
+                : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+            }`}
+            onClick={() => setDisplayMode("upper")}
+            aria-pressed={displayMode === "upper"}
+          >
+            <span aria-hidden className="inline-flex items-start leading-none">
+              +8
+              <span className="-translate-y-[0.32em] font-serif text-[0.9em] italic">va</span>
+            </span>
+          </button>
+          <button
+            type="button"
+            aria-label="Treble"
+            className={`relative z-10 inline-flex h-7 items-center justify-center rounded-md px-2 py-1 text-xs font-medium leading-none transition-colors duration-150 ${
+              displayMode === "treble"
+                ? "text-white dark:text-slate-900"
+                : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+            }`}
+            onClick={() => setDisplayMode("treble")}
+            aria-pressed={displayMode === "treble"}
+          >
+            Treble
+          </button>
+          <button
+            type="button"
+            aria-label="Bass"
+            className={`relative z-10 inline-flex h-7 items-center justify-center rounded-md px-2 py-1 text-xs font-medium leading-none transition-colors duration-150 ${
+              displayMode === "bass"
+                ? "text-white dark:text-slate-900"
+                : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+            }`}
+            onClick={() => setDisplayMode("bass")}
+            aria-pressed={displayMode === "bass"}
+          >
+            Bass
+          </button>
+          <button
+            type="button"
+            aria-label="-8va"
+            className={`relative z-10 inline-flex h-7 items-center justify-center rounded-md px-2 py-1 text-xs font-medium leading-none transition-colors duration-150 ${
+              displayMode === "lower"
+                ? "text-white dark:text-slate-900"
+                : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+            }`}
+            onClick={() => setDisplayMode("lower")}
+            aria-pressed={displayMode === "lower"}
+          >
+            <span aria-hidden className="inline-flex items-start leading-none">
+              -8
+              <span className="-translate-y-[0.32em] font-serif text-[0.9em] italic">vb</span>
+            </span>
+          </button>
+        </div>
+      </div>
       {uniquePitchClasses.length === 0 ? (
         <p className={`mt-3 ${helperMessageClassName}`}>
           Select notes to see interval and chord details.
@@ -348,6 +428,13 @@ export function DetectedResults({
                   .map((note) => formatMusicText(note, notationPreference))
                   .join(", ")}
               </p>
+              <div className="mt-2 flex min-h-[96px] items-center justify-center">
+                <ChordNotation
+                  match={match}
+                  notationPreference={notationPreference}
+                  displayMode={displayMode}
+                />
+              </div>
             </article>
           ))}
         </div>
