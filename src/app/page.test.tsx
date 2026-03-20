@@ -105,6 +105,11 @@ describe("Detect workspace route", () => {
     cleanup();
     document.documentElement.classList.remove("dark");
     document.documentElement.style.colorScheme = "";
+    document.head
+      .querySelectorAll('link[data-accordis-theme-favicon="true"], link[data-test-favicon="true"]')
+      .forEach((link) => {
+        link.remove();
+      });
     if (originalMatchMedia) {
       window.matchMedia = originalMatchMedia;
     } else {
@@ -484,6 +489,11 @@ describe("Detect workspace route", () => {
   it("loads, toggles, and persists dark theme preference", async () => {
     const user = userEvent.setup();
     localStorage.setItem("accordis-theme-preference", "dark");
+    const initialIconLink = document.createElement("link");
+    initialIconLink.rel = "icon";
+    initialIconLink.href = "/logo_light.png";
+    initialIconLink.setAttribute("data-test-favicon", "true");
+    document.head.appendChild(initialIconLink);
 
     renderDetectRoute();
 
@@ -491,6 +501,10 @@ describe("Detect workspace route", () => {
     await waitFor(() => {
       expect(document.documentElement).toHaveClass("dark");
       expect(document.documentElement.style.colorScheme).toBe("dark");
+      expect(document.querySelector('link[data-accordis-theme-favicon="true"]')).toHaveAttribute(
+        "href",
+        expect.stringContaining("/logo_dark.png"),
+      );
     });
 
     await user.click(themeToggle);
@@ -499,6 +513,10 @@ describe("Detect workspace route", () => {
     expect(document.documentElement).not.toHaveClass("dark");
     expect(document.documentElement.style.colorScheme).toBe("light");
     expect(localStorage.getItem("accordis-theme-preference")).toBe("light");
+    expect(document.querySelector('link[data-accordis-theme-favicon="true"]')).toHaveAttribute(
+      "href",
+      expect.stringContaining("/logo_light.png"),
+    );
   });
 
   it("uses system dark preference when no saved theme exists", async () => {

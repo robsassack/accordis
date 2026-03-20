@@ -29,6 +29,9 @@ export const metadata: Metadata = {
   },
 };
 
+const LIGHT_FAVICON_URL = withBasePath("/logo_light.png");
+const DARK_FAVICON_URL = withBasePath("/logo_dark.png");
+
 const themeScript = `
 (() => {
   const storageKey = "accordis-theme-preference";
@@ -36,6 +39,25 @@ const themeScript = `
   const supportsMatchMedia = typeof window.matchMedia === "function";
   const systemPrefersDark = supportsMatchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
   const isDark = stored === "dark" || (stored !== "light" && systemPrefersDark);
+  const faviconHref = isDark ? "${DARK_FAVICON_URL}" : "${LIGHT_FAVICON_URL}";
+
+  const iconLinks = document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"], link[rel="alternate icon"]');
+  iconLinks.forEach((link) => {
+    link.href = faviconHref;
+    link.media = "";
+  });
+
+  let runtimeIconLink = document.querySelector('link[data-accordis-theme-favicon="true"]');
+  if (!runtimeIconLink) {
+    runtimeIconLink = document.createElement("link");
+    runtimeIconLink.rel = "icon";
+    runtimeIconLink.type = "image/png";
+    runtimeIconLink.setAttribute("data-accordis-theme-favicon", "true");
+    document.head.appendChild(runtimeIconLink);
+  }
+
+  runtimeIconLink.href = faviconHref;
+
   if (isDark) {
     document.documentElement.classList.add("dark");
     document.documentElement.style.colorScheme = "dark";
