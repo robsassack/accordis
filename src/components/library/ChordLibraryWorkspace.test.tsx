@@ -207,6 +207,17 @@ describe("ChordLibraryWorkspace", () => {
     expect(chordAudioState.playSelectedKeys).toHaveBeenCalledWith(["E4", "G4", "C5"]);
   });
 
+  it("uses bass-clef adjusted voicing when playing the selected chord", async () => {
+    const user = userEvent.setup();
+    renderChordWorkspace();
+    await screen.findByRole("heading", { name: "C Major" });
+
+    await user.click(screen.getByRole("button", { name: "Bass" }));
+    await user.click(screen.getByRole("button", { name: "Play selected chord" }));
+
+    expect(chordAudioState.playSelectedKeys).toHaveBeenCalledWith(["C2", "E2", "G2"]);
+  });
+
   it("supports chord symbol search across sharps and flats", async () => {
     const user = userEvent.setup();
     renderChordWorkspace();

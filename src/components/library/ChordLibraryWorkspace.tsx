@@ -4,6 +4,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, u
 import { usePathname, useRouter } from "next/navigation";
 import { useChordAudio } from "@/components/audio/ChordAudioProvider";
 import { PianoKeyboard } from "@/components/piano/PianoKeyboard";
+import { ChordNotation } from "@/components/results/ChordNotation";
+import type { ChordMatch } from "@/lib/chord-types";
 import {
   buildPianoKeys,
   formatMusicText,
@@ -26,7 +28,7 @@ import {
   type ChordId,
 } from "@/lib/chords";
 
-const PIANO_KEYS = buildPianoKeys(4, 5);
+const PLAYBACK_PIANO_KEYS = buildPianoKeys(4, 5);
 const DEFAULT_CHORD_ID: ChordId = "major";
 const DEFAULT_ROOT: PitchClass = "C";
 const CHORD_LIBRARY_SESSION_STORAGE_KEY = "accordis-chord-library-session";
@@ -35,6 +37,10 @@ const DEFAULT_PLAYBACK_OCTAVE = 4;
 const DEFAULT_INVERSION_INDEX = 0;
 const MIN_PLAYBACK_OCTAVE = 4;
 const MAX_PLAYBACK_OCTAVE = 5;
+const NOTATION_OCTAVE_SHIFT_BY_CLEF: Record<"treble" | "bass", number> = {
+  treble: 0,
+  bass: -2,
+};
 const CHORD_LIBRARY_GROUPS: ReadonlyArray<{
   title: string;
   chordIds: readonly ChordId[];
@@ -81,10 +87,12 @@ type ChordLibrarySessionAction =
 
 let chordLibrarySessionCache: ChordLibrarySession | null = null;
 let chordLibraryListScrollTopCache = 0;
+let chordLibraryNotationClefCache: "treble" | "bass" = "treble";
 
 export function resetChordLibrarySessionCacheForTests(): void {
   chordLibrarySessionCache = null;
   chordLibraryListScrollTopCache = 0;
+  chordLibraryNotationClefCache = "treble";
 }
 
 function getDefaultChordLibrarySession(): ChordLibrarySession {
@@ -178,6 +186,27 @@ function areKeyIdListsEqual(left: string[], right: string[]): boolean {
   return left.every((keyId, index) => keyId === right[index]);
 }
 
+function buildClefAdjustedVoicingKeyIds(
+  voicingKeyIds: string[],
+  clef: "treble" | "bass",
+): string[] {
+  const parsedVoicing = voicingKeyIds
+    .map((keyId) => parseKeyId(keyId))
+    .filter((parsed): parsed is NonNullable<ReturnType<typeof parseKeyId>> => parsed !== null);
+
+  if (parsedVoicing.length === 0) {
+    return voicingKeyIds;
+  }
+
+  const octaveShift = NOTATION_OCTAVE_SHIFT_BY_CLEF[clef];
+
+  if (octaveShift === 0) {
+    return parsedVoicing.map((parsed) => `${parsed.note}${parsed.octave}`);
+  }
+
+  return parsedVoicing.map((parsed) => `${parsed.note}${parsed.octave + octaveShift}`);
+}
+
 function chordLibrarySessionReducer(
   currentSession: ChordLibrarySessionState,
   action: ChordLibrarySessionAction,
@@ -219,6 +248,7 @@ export function ChordLibraryWorkspace() {
       }
     : baseInitialSession;
   const [searchQuery, setSearchQuery] = useState("");
+  const [notationClef, setNotationClef] = useState<"treble" | "bass">(chordLibraryNotationClefCache);
   const [interactionSelectionOverride, setInteractionSelectionOverride] = useState<{
     root: PitchClass;
     chordId: ChordId;
@@ -251,7 +281,7 @@ export function ChordLibraryWorkspace() {
   const activePlaybackOctave = clampPlaybackOctave(playbackOctave);
   const inversionLabel = formatChordInversionLabel(activeInversionIndex, selectedChordDefinition);
   const visibleKeyboardRange = useMemo(() => {
-    const midiLikeValues = PIANO_KEYS.map((key) => key.octave * 12 + pitchClassToIndex(key.note));
+    const midiLikeValues = PLAYBACK_PIANO_KEYS.map((key) => key.octave * 12 + pitchClassToIndex(key.note));
     return {
       minMidiLike: Math.min(...midiLikeValues),
       maxMidiLike: Math.max(...midiLikeValues),
@@ -290,15 +320,38 @@ export function ChordLibraryWorkspace() {
   const canShiftUp =
     shiftedUpPlaybackOctave !== activePlaybackOctave &&
     !areKeyIdListsEqual(shiftedUpVoicingKeyIds, selectedChordVoicingKeyIds);
-  const keyboardSelectedKeyIds = selectedChordVoicingKeyIds;
+  const notationVoicingKeyIds = useMemo(
+    () => buildClefAdjustedVoicingKeyIds(selectedChordVoicingKeyIds, notationClef),
+    [selectedChordVoicingKeyIds, notationClef],
+  );
+  const displayPianoKeys = useMemo(
+    () => (notationClef === "bass" ? buildPianoKeys(2, 3) : buildPianoKeys(4, 5)),
+    [notationClef],
+  );
   const chordNotesText = selectedChordPitchClasses
     .map((pitchClass) => formatMusicText(pitchClass, rootNotationPreference))
     .join(", ");
-  const chordVoicingText = selectedChordVoicingKeyIds
+  const chordVoicingText = notationVoicingKeyIds
     .map((keyId) => formatMusicText(keyId, rootNotationPreference))
     .join(", ");
   const semitoneText = selectedChordDefinition.intervals.join(", ");
   const formulaText = formatMusicText(selectedChordDefinition.formula);
+  const bassPitchClass = parseKeyId(selectedChordVoicingKeyIds[0] ?? "")?.note ?? activeSelectedRoot;
+  const slashSymbol =
+    bassPitchClass === activeSelectedRoot
+      ? null
+      : `${selectedChordSymbol}/${formatMusicText(bassPitchClass, rootNotationPreference)}`;
+  const chordNotationMatch: ChordMatch = {
+    name: selectedChordLabel,
+    symbol: selectedChordSymbol,
+    root: activeSelectedRoot,
+    quality: selectedChordDefinition.id,
+    notes: selectedChordPitchClasses,
+    inversionLabel,
+    bass: bassPitchClass,
+    slashSymbol,
+    partialOmission: null,
+  };
 
   const normalizedQuery = normalizeSearchText(searchQuery);
   const chordDefinitionById = useMemo(
@@ -331,8 +384,8 @@ export function ChordLibraryWorkspace() {
   );
 
   const handlePlayChord = useCallback(async (): Promise<void> => {
-    await playSelectedKeys(selectedChordVoicingKeyIds);
-  }, [playSelectedKeys, selectedChordVoicingKeyIds]);
+    await playSelectedKeys(notationVoicingKeyIds);
+  }, [playSelectedKeys, notationVoicingKeyIds]);
 
   const handleKeyboardKeyClick = useCallback(
     (keyId: string) => {
@@ -403,6 +456,10 @@ export function ChordLibraryWorkspace() {
       }
     };
   }, [interactionSelectionOverride, chordSelectionFromPath, pathname]);
+
+  useEffect(() => {
+    chordLibraryNotationClefCache = notationClef;
+  }, [notationClef]);
 
   useEffect(() => {
     if (!hasRestored) {
@@ -730,10 +787,50 @@ export function ChordLibraryWorkspace() {
             <span className="font-semibold">Semitones:</span> {semitoneText}
           </p>
         </div>
+        <div className="mb-2 flex items-center justify-end">
+          <div
+            className="inline-flex rounded-lg border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900"
+            role="group"
+            aria-label="Clef selection"
+          >
+            <button
+              type="button"
+              onClick={() => setNotationClef("treble")}
+              aria-pressed={notationClef === "treble"}
+              className={`rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                notationClef === "treble"
+                  ? "bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900"
+                  : "text-slate-600 hover:text-slate-800 dark:text-slate-300 dark:hover:text-slate-100"
+              }`}
+            >
+              Treble
+            </button>
+            <button
+              type="button"
+              onClick={() => setNotationClef("bass")}
+              aria-pressed={notationClef === "bass"}
+              className={`rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+                notationClef === "bass"
+                  ? "bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900"
+                  : "text-slate-600 hover:text-slate-800 dark:text-slate-300 dark:hover:text-slate-100"
+              }`}
+            >
+              Bass
+            </button>
+          </div>
+        </div>
+        <div className="mb-4 flex min-h-[108px] items-center justify-center rounded-xl border border-slate-200/80 bg-white/80 px-2 py-1 dark:border-slate-800 dark:bg-slate-950/40">
+          <ChordNotation
+            match={chordNotationMatch}
+            notationPreference={rootNotationPreference}
+            displayMode={notationClef}
+            voicingKeyIds={notationVoicingKeyIds}
+          />
+        </div>
 
         <PianoKeyboard
-          keys={PIANO_KEYS}
-          selectedKeys={keyboardSelectedKeyIds}
+          keys={displayPianoKeys}
+          selectedKeys={notationVoicingKeyIds}
           primaryMissingKeyId={null}
           secondaryMissingKeyId={null}
           onKeyClick={handleKeyboardKeyClick}
