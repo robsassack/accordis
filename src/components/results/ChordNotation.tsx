@@ -10,6 +10,27 @@ type NoteVexInfo = {
   accidental: string | null;
 };
 
+const LETTER_TO_SEMITONE: Record<string, number> = {
+  c: 0,
+  d: 2,
+  e: 4,
+  f: 5,
+  g: 7,
+  a: 9,
+  b: 11,
+};
+
+const TARGET_MIDI_RANGE_BY_MODE: Record<
+  "upper" | "treble" | "bass" | "lower",
+  { min: number; max: number }
+> = {
+  // Keep each mode readable while still preserving the "higher/lower" character.
+  upper: { min: 62, max: 86 },
+  treble: { min: 57, max: 81 },
+  bass: { min: 38, max: 64 },
+  lower: { min: 33, max: 59 },
+};
+
 const SHARP_NOTE_LETTERS: Record<PitchClass, { letter: string; accidental: string | null }> = {
   C: { letter: "c", accidental: null },
   "C#": { letter: "c#", accidental: "#" },
@@ -68,6 +89,52 @@ function buildNoteInfos(
   return result;
 }
 
+function parseKeyToMidi(key: string): number | null {
+  const match = key.match(/^([a-g])(b|#)?\/(-?\d+)$/i);
+  if (!match) {
+    return null;
+  }
+  const [, rawLetter, accidental, rawOctave] = match;
+  const letter = rawLetter.toLowerCase();
+  const base = LETTER_TO_SEMITONE[letter];
+  const octave = Number(rawOctave);
+  if (base === undefined || Number.isNaN(octave)) {
+    return null;
+  }
+  const accidentalShift = accidental === "#" ? 1 : accidental === "b" ? -1 : 0;
+  return (octave + 1) * 12 + base + accidentalShift;
+}
+
+function chooseOctaveShiftForRange(
+  noteInfos: NoteVexInfo[],
+  displayMode: "upper" | "treble" | "bass" | "lower",
+): number {
+  const target = TARGET_MIDI_RANGE_BY_MODE[displayMode];
+  const baseMidis = noteInfos.map((info) => parseKeyToMidi(info.key)).filter((midi): midi is number => midi !== null);
+  if (baseMidis.length === 0) {
+    return 0;
+  }
+
+  let bestShift = 0;
+  let bestScore = Number.POSITIVE_INFINITY;
+  for (const octaveShift of [-2, -1, 0, 1, 2]) {
+    const semitoneShift = octaveShift * 12;
+    const shifted = baseMidis.map((midi) => midi + semitoneShift);
+    const min = Math.min(...shifted);
+    const max = Math.max(...shifted);
+    const overflowLow = Math.max(0, target.min - min);
+    const overflowHigh = Math.max(0, max - target.max);
+    const overflowPenalty = overflowLow + overflowHigh;
+    const movementPenalty = Math.abs(octaveShift) * 0.25;
+    const score = overflowPenalty + movementPenalty;
+    if (score < bestScore) {
+      bestScore = score;
+      bestShift = octaveShift;
+    }
+  }
+  return bestShift;
+}
+
 export function ChordNotation({
   match,
   notationPreference,
@@ -103,10 +170,18 @@ export function ChordNotation({
     let cancelled = false;
 
     (async () => {
-      const { Renderer, Stave, StaveNote, Voice, Formatter, Accidental } = await import("vexflow");
+      const { Renderer, Stave, StaveNote, Voice, Formatter, Accidental, MetricsDefaults } = await import(
+        "vexflow"
+      );
       if (cancelled) return;
 
       container.innerHTML = "";
+
+      // VexFlow's formatter computes accidental placement from these metrics.
+      // Tightening these values makes accidentals sit closer to noteheads.
+      MetricsDefaults.Accidental.noteheadAccidentalPadding = -7;
+      MetricsDefaults.Accidental.accidentalSpacing = 1;
+      MetricsDefaults.Accidental.leftPadding = 0;
 
       const renderer = new Renderer(container, Renderer.Backends.SVG);
       renderer.resize(renderWidth, renderHeight);
@@ -129,7 +204,12 @@ export function ChordNotation({
       stave.addClef(resolvedClef);
       stave.setContext(context).draw();
 
-      const noteInfos = buildNoteInfos(match.notes, notationPreference, baseOctave);
+      const initialNoteInfos = buildNoteInfos(match.notes, notationPreference, baseOctave);
+      const octaveRangeShift = chooseOctaveShiftForRange(initialNoteInfos, displayMode);
+      const noteInfos =
+        octaveRangeShift === 0
+          ? initialNoteInfos
+          : buildNoteInfos(match.notes, notationPreference, baseOctave + octaveRangeShift);
       const highestRenderedOctave = noteInfos.reduce((maxOctave, info) => {
         const octavePart = Number(info.key.split("/")[1]);
         if (Number.isNaN(octavePart)) {
@@ -142,6 +222,9 @@ export function ChordNotation({
         keys: noteInfos.map((n) => n.key),
         duration: "w",
       });
+      const containerWidth = container.clientWidth || 0;
+      const noteXShift = containerWidth > 0 && containerWidth < 190 ? 7 : 12;
+      staveNote.setXShift(noteXShift);
 
       noteInfos.forEach((info, idx) => {
         if (info.accidental !== null) {
@@ -170,13 +253,13 @@ export function ChordNotation({
         const vbW = bbox.width + cropPadX * 2;
         const vbH = bbox.height + cropPadTop + cropPadBottom;
         svgEl.setAttribute("viewBox", `${bbox.x - cropPadX} ${bbox.y - cropPadTop} ${vbW} ${vbH}`);
-        svgEl.setAttribute("preserveAspectRatio", "xMidYMid meet");
+        svgEl.setAttribute("preserveAspectRatio", "xMinYMid meet");
         svgEl.setAttribute("height", String(targetHeight));
-        svgEl.setAttribute("width", String((vbW / vbH) * targetHeight));
+        svgEl.setAttribute("width", "100%");
         svgEl.style.display = "block";
         svgEl.style.overflow = "visible";
         svgEl.style.maxWidth = "100%";
-        svgEl.style.height = "auto";
+        svgEl.style.height = `${targetHeight}px`;
         svgEl.style.transformOrigin = "center center";
 
         const prefersReducedMotion =
