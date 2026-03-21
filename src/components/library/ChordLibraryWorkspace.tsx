@@ -789,17 +789,23 @@ export function ChordLibraryWorkspace() {
         </div>
         <div className="mb-2 flex items-center justify-end">
           <div
-            className="inline-flex rounded-lg border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900"
+            className="relative inline-grid grid-cols-2 overflow-hidden rounded-lg border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900"
             role="group"
             aria-label="Clef selection"
           >
+            <span aria-hidden className="pointer-events-none absolute inset-1 z-0">
+              <span
+                className="block h-full w-1/2 rounded-md bg-slate-800 transition-transform duration-200 ease-out dark:bg-slate-100"
+                style={{ transform: notationClef === "bass" ? "translateX(100%)" : "translateX(0%)" }}
+              />
+            </span>
             <button
               type="button"
               onClick={() => setNotationClef("treble")}
               aria-pressed={notationClef === "treble"}
-              className={`rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+              className={`relative z-10 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
                 notationClef === "treble"
-                  ? "bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900"
+                  ? "text-white dark:text-slate-900"
                   : "text-slate-600 hover:text-slate-800 dark:text-slate-300 dark:hover:text-slate-100"
               }`}
             >
@@ -809,9 +815,9 @@ export function ChordLibraryWorkspace() {
               type="button"
               onClick={() => setNotationClef("bass")}
               aria-pressed={notationClef === "bass"}
-              className={`rounded-md px-2 py-1 text-xs font-medium transition-colors ${
+              className={`relative z-10 rounded-md px-2 py-1 text-xs font-medium transition-colors ${
                 notationClef === "bass"
-                  ? "bg-slate-800 text-white dark:bg-slate-100 dark:text-slate-900"
+                  ? "text-white dark:text-slate-900"
                   : "text-slate-600 hover:text-slate-800 dark:text-slate-300 dark:hover:text-slate-100"
               }`}
             >
