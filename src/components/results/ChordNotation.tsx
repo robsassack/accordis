@@ -79,6 +79,7 @@ export function ChordNotation({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const previousDisplayModeRef = useRef(displayMode);
+  const notesKey = match.notes.join("|");
   const renderWidth = 200;
   const renderHeight = 200;
   const staveY = 40;
@@ -198,7 +199,7 @@ export function ChordNotation({
       cancelled = true;
     };
   }, [
-    match.notes,
+    notesKey,
     notationPreference,
     displayMode,
     renderWidth,
