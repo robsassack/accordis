@@ -116,6 +116,7 @@ describe("ScaleLibraryWorkspace", () => {
 
     expect(await screen.findByRole("heading", { name: "C Major" })).toBeInTheDocument();
     expect(screen.getByText("Notes: C, D, E, F, G, A, B")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Scale notation" })).toBeInTheDocument();
     expect(screen.getByText(/Formula:/)).toBeInTheDocument();
     expect(screen.getByText(/Semitones:/)).toBeInTheDocument();
   });

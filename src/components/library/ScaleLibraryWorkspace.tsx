@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, u
 import { usePathname, useRouter } from "next/navigation";
 import { useScaleAudio } from "@/components/audio/ScaleAudioProvider";
 import { PianoKeyboard } from "@/components/piano/PianoKeyboard";
+import { ScaleNotation } from "@/components/library/ScaleNotation";
 import {
   buildPianoKeys,
   formatMusicText,
@@ -200,6 +201,7 @@ export function ScaleLibraryWorkspace() {
       }
     : baseInitialSession;
   const [searchQuery, setSearchQuery] = useState("");
+  const [activePlaybackNoteName, setActivePlaybackNoteName] = useState<string | null>(null);
   const [session, dispatchSession] = useReducer(scaleLibrarySessionReducer, {
     ...initialSession,
     hasRestored: hasCachedSession,
@@ -221,6 +223,10 @@ export function ScaleLibraryWorkspace() {
   const selectedRootText = formatMusicText(activeSelectedRoot, rootNotationPreference);
   const selectedScaleLabel = `${selectedRootText} ${selectedScaleDefinition.name}`;
   const selectedScalePitchClasses = buildScalePitchClasses(activeSelectedRoot, selectedScaleDefinition);
+  const notationPitchClasses =
+    selectedScalePitchClasses.length > 0
+      ? [...selectedScalePitchClasses, selectedScalePitchClasses[0]]
+      : selectedScalePitchClasses;
   const selectedPitchClassSet = new Set(selectedScalePitchClasses);
   const keyboardSelectedKeyIds = PIANO_KEYS.filter((key) => selectedPitchClassSet.has(key.note)).map(
     (key) => `${key.note}${key.octave}`,
@@ -268,7 +274,11 @@ export function ScaleLibraryWorkspace() {
       playbackDirection,
     );
     const stepSeconds = 60 / tempoBpm;
-    await playScaleNoteSequence(noteNames, stepSeconds);
+    setActivePlaybackNoteName(null);
+    await playScaleNoteSequence(noteNames, stepSeconds, {
+      onNotePlay: (noteName) => setActivePlaybackNoteName(noteName),
+      onPlaybackEnd: () => setActivePlaybackNoteName(null),
+    });
   }, [activeSelectedRoot, playScaleNoteSequence, playbackDirection, selectedScaleDefinition, tempoBpm]);
 
   const handleKeyboardKeyClick = useCallback((keyId: string) => {
@@ -535,7 +545,6 @@ export function ScaleLibraryWorkspace() {
             </svg>
           </button>
         </div>
-
         <div className="mb-4 grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-slate-800 dark:bg-slate-950/40 sm:grid-cols-3">
           <label className="flex flex-col gap-1 text-xs font-semibold tracking-wide text-slate-600 dark:text-slate-300">
             Direction
@@ -583,6 +592,13 @@ export function ScaleLibraryWorkspace() {
           <p className="text-slate-700 dark:text-slate-200">
             <span className="font-semibold">Semitones:</span> {semitoneText}
           </p>
+        </div>
+        <div className="mb-4 flex min-h-[108px] items-center justify-center rounded-xl border border-slate-200/80 bg-white/80 px-2 py-1 dark:border-slate-800 dark:bg-slate-950/40">
+          <ScaleNotation
+            notes={notationPitchClasses}
+            notationPreference={displayNotationPreference}
+            activePlaybackNoteName={activePlaybackNoteName}
+          />
         </div>
 
         <PianoKeyboard

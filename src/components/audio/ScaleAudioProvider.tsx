@@ -34,7 +34,14 @@ const UPRIGHT_PIANO_SAMPLE_URLS = {
 
 type ScaleAudioContextValue = {
   isScalePlaying: boolean;
-  playScaleNoteSequence: (noteNames: string[], stepSeconds: number) => Promise<void>;
+  playScaleNoteSequence: (
+    noteNames: string[],
+    stepSeconds: number,
+    options?: {
+      onNotePlay?: (noteName: string, noteIndex: number) => void;
+      onPlaybackEnd?: () => void;
+    },
+  ) => Promise<void>;
 };
 
 const ScaleAudioContext = createContext<ScaleAudioContextValue | null>(null);
@@ -48,6 +55,7 @@ export function ScaleAudioProvider({ children }: { children: ReactNode }) {
   const toneModulePromiseRef = useRef<Promise<typeof import("tone")> | null>(null);
   const toneAssetsReadyPromiseRef = useRef<Promise<void> | null>(null);
   const scalePlayingTimerRef = useRef<number | null>(null);
+  const scaleNoteTimersRef = useRef<number[]>([]);
 
   const getToneModule = useCallback(async (): Promise<typeof import("tone")> => {
     if (toneModuleRef.current) {
@@ -64,7 +72,14 @@ export function ScaleAudioProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const playScaleNoteSequence = useCallback(
-    async (noteNames: string[], stepSeconds: number): Promise<void> => {
+    async (
+      noteNames: string[],
+      stepSeconds: number,
+      options?: {
+        onNotePlay?: (noteName: string, noteIndex: number) => void;
+        onPlaybackEnd?: () => void;
+      },
+    ): Promise<void> => {
       if (noteNames.length === 0 || stepSeconds <= 0) {
         return;
       }
@@ -110,6 +125,8 @@ export function ScaleAudioProvider({ children }: { children: ReactNode }) {
       if (scalePlayingTimerRef.current !== null) {
         window.clearTimeout(scalePlayingTimerRef.current);
       }
+      scaleNoteTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
+      scaleNoteTimersRef.current = [];
 
       setIsScalePlaying(true);
       scaleSamplerRef.current.releaseAll(now);
@@ -120,11 +137,19 @@ export function ScaleAudioProvider({ children }: { children: ReactNode }) {
           now + index * stepSeconds,
           0.56,
         );
+
+        if (options?.onNotePlay) {
+          const timerId = window.setTimeout(() => {
+            options.onNotePlay?.(noteName, index);
+          }, Math.max(0, Math.round(index * stepSeconds * 1000)));
+          scaleNoteTimersRef.current.push(timerId);
+        }
       });
 
       const totalDurationSeconds = noteDuration + (noteNames.length - 1) * stepSeconds;
       scalePlayingTimerRef.current = window.setTimeout(() => {
         setIsScalePlaying(false);
+        options?.onPlaybackEnd?.();
         scalePlayingTimerRef.current = null;
       }, Math.ceil(totalDurationSeconds * 1000) + 40);
     },
@@ -143,6 +168,8 @@ export function ScaleAudioProvider({ children }: { children: ReactNode }) {
         window.clearTimeout(scalePlayingTimerRef.current);
         scalePlayingTimerRef.current = null;
       }
+      scaleNoteTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
+      scaleNoteTimersRef.current = [];
     };
   }, []);
 

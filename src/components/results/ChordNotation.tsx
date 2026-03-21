@@ -26,10 +26,10 @@ const TARGET_MIDI_RANGE_BY_MODE: Record<
   { min: number; max: number }
 > = {
   // Keep each mode readable while still preserving the "higher/lower" character.
-  upper: { min: 60, max: 72 },
-  treble: { min: 48, max: 60 },
-  bass: { min: 24, max: 36 },
-  lower: { min: 12, max: 24 },
+  upper: { min: 62, max: 86 },
+  treble: { min: 57, max: 81 },
+  bass: { min: 38, max: 64 },
+  lower: { min: 33, max: 59 },
 };
 
 const SHARP_NOTE_LETTERS: Record<PitchClass, { letter: string; accidental: string | null }> = {
