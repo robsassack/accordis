@@ -822,7 +822,7 @@ export function ChordLibraryWorkspace() {
             </button>
           </div>
         </div>
-        <div className="mb-4 flex min-h-[108px] items-center justify-center rounded-xl border border-slate-200/80 bg-white/80 px-2 py-1 dark:border-slate-800 dark:bg-slate-950/40">
+        <div className="mb-4 flex min-h-27 items-center justify-center rounded-xl border border-slate-200/80 bg-white/80 px-2 py-1 dark:border-slate-800 dark:bg-slate-950/40">
           <ChordNotation
             match={chordNotationMatch}
             notationPreference={rootNotationPreference}
