@@ -320,10 +320,7 @@ export function ChordLibraryWorkspace() {
   const canShiftUp =
     shiftedUpPlaybackOctave !== activePlaybackOctave &&
     !areKeyIdListsEqual(shiftedUpVoicingKeyIds, selectedChordVoicingKeyIds);
-  const notationVoicingKeyIds = useMemo(
-    () => buildClefAdjustedVoicingKeyIds(selectedChordVoicingKeyIds, notationClef),
-    [selectedChordVoicingKeyIds, notationClef],
-  );
+  const notationVoicingKeyIds = buildClefAdjustedVoicingKeyIds(selectedChordVoicingKeyIds, notationClef);
   const displayPianoKeys = useMemo(
     () => (notationClef === "bass" ? buildPianoKeys(2, 3) : buildPianoKeys(4, 5)),
     [notationClef],

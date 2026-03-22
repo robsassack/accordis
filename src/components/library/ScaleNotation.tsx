@@ -261,7 +261,7 @@ export function ScaleNotation({
     if (svgEl && contentGroups.length > 0) {
       const groupBounds = contentGroups
         .map((group) => (typeof group.getBBox === "function" ? group.getBBox() : null))
-        .filter((bbox): bbox is { x: number; y: number; width: number; height: number } => (
+        .filter((bbox): bbox is DOMRect => (
           bbox !== null
             && Number.isFinite(bbox.x)
             && Number.isFinite(bbox.y)

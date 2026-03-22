@@ -235,7 +235,8 @@ export function ChordNotation({
 
   useLayoutEffect(() => {
     const container = containerRef.current;
-    if (!container || match.notes.length === 0) return;
+    const notes = notesKey.length > 0 ? (notesKey.split("|") as PitchClass[]) : [];
+    if (!container || notes.length === 0) return;
 
     const stagingContainer = document.createElement("div");
     stagingContainer.style.position = "absolute";
@@ -278,7 +279,7 @@ export function ChordNotation({
     const initialNoteInfos =
       explicitVoicingNoteInfos.length > 0
         ? explicitVoicingNoteInfos
-        : buildNoteInfos(match.notes, notationPreference, baseOctave);
+        : buildNoteInfos(notes, notationPreference, baseOctave);
     const noteInfos =
       explicitVoicingNoteInfos.length > 0
         ? initialNoteInfos
