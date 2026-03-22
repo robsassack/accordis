@@ -124,6 +124,7 @@ export function ScaleNotation({
   const containerRef = useRef<HTMLDivElement>(null);
   const notesKey = notes.join("|");
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [containerWidth, setContainerWidth] = useState(0);
 
   useEffect(() => {
     if (typeof document === "undefined") {
@@ -147,17 +148,43 @@ export function ScaleNotation({
     };
   }, []);
 
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const syncWidth = () => {
+      setContainerWidth(Math.floor(container.clientWidth));
+    };
+    syncWidth();
+
+    if (typeof ResizeObserver === "function") {
+      const ro = new ResizeObserver((entries) => {
+        setContainerWidth(Math.floor(entries[0]?.contentRect.width ?? 0));
+      });
+      ro.observe(container);
+      return () => ro.disconnect();
+    }
+
+    window.addEventListener("resize", syncWidth);
+    return () => {
+      window.removeEventListener("resize", syncWidth);
+    };
+  }, []);
+
   useLayoutEffect(() => {
     const container = containerRef.current;
     if (!container || notes.length === 0) {
       return;
     }
 
-    const containerWidth = container.clientWidth || 0;
-    const useTwoLines = containerWidth > 0 && containerWidth < 430;
-    const renderWidth = 640;
-    const renderHeight = useTwoLines ? 220 : 140;
-    const targetHeight = useTwoLines ? 132 : 84;
+    const viewportWidth = typeof window === "undefined" ? 640 : window.innerWidth;
+    const fallbackWidth = Math.max(Math.min(viewportWidth - 32, 640), 220);
+    const effectiveWidth = containerWidth || container.clientWidth || fallbackWidth;
+    const useTwoLines = effectiveWidth < 480;
+    const renderWidth = Math.max(Math.floor(effectiveWidth) - 8, 180);
+    const renderHeight = useTwoLines ? 290 : 190;
     const stagingContainer = document.createElement("div");
     stagingContainer.style.position = "absolute";
     stagingContainer.style.inset = "0";
@@ -198,10 +225,16 @@ export function ScaleNotation({
       infos: NoteVexInfo[],
       y: number,
       showClef: boolean,
-    ) => {
-      const stave = new Stave(0, y, renderWidth - 8);
+      noteStartXOverride?: number,
+    ): number => {
+      const staveWidth = Math.max(renderWidth - 8, 120);
+      const formatterWidth = Math.max(staveWidth - 102, 48);
+      const stave = new Stave(0, y, staveWidth);
       if (showClef) {
         stave.addClef("treble");
+      }
+      if (noteStartXOverride !== undefined) {
+        stave.setNoteStartX(noteStartXOverride);
       }
       stave.setContext(context).draw();
 
@@ -209,35 +242,88 @@ export function ScaleNotation({
       const voice = new Voice({ numBeats: 4, beatValue: 4 });
       voice.setStrict(false);
       voice.addTickables(staveNotes);
-      new Formatter().joinVoices([voice]).format([voice], renderWidth - (showClef ? 110 : 45));
+      new Formatter().joinVoices([voice]).format([voice], formatterWidth);
       voice.draw(context, stave);
+
+      return stave.getNoteStartX();
     };
 
     if (useTwoLines && noteInfos.length > 1) {
       const splitIndex = Math.ceil(noteInfos.length / 2);
-      drawLine(noteInfos.slice(0, splitIndex), 26, true);
-      drawLine(noteInfos.slice(splitIndex), 108, false);
+      const noteStartX = drawLine(noteInfos.slice(0, splitIndex), 55, true);
+      drawLine(noteInfos.slice(splitIndex), 165, false, noteStartX);
     } else {
-      drawLine(noteInfos, 26, true);
+      drawLine(noteInfos, 48, true);
     }
 
     const svgEl = stagingContainer.querySelector("svg");
-    const contentGroup = stagingContainer.querySelector("svg > g") as SVGGElement | null;
-    if (svgEl && contentGroup && typeof contentGroup.getBBox === "function") {
-      const bbox = contentGroup.getBBox();
-      const padX = 8;
-      const padTop = 16;
-      const padBottom = 18;
+    const contentGroups = Array.from(stagingContainer.querySelectorAll("svg > g")) as SVGGElement[];
+    if (svgEl && contentGroups.length > 0) {
+      const groupBounds = contentGroups
+        .map((group) => (typeof group.getBBox === "function" ? group.getBBox() : null))
+        .filter((bbox): bbox is { x: number; y: number; width: number; height: number } => (
+          bbox !== null
+            && Number.isFinite(bbox.x)
+            && Number.isFinite(bbox.y)
+            && Number.isFinite(bbox.width)
+            && Number.isFinite(bbox.height)
+        ));
+      if (groupBounds.length === 0) {
+        const nextSvg = stagingContainer.querySelector("svg");
+        if (nextSvg) {
+          container.replaceChildren(nextSvg);
+        } else {
+          stagingContainer.remove();
+        }
+
+        return () => {
+          stagingContainer.remove();
+        };
+      }
+
+      const minX = Math.min(...groupBounds.map((bbox) => bbox.x));
+      const minY = Math.min(...groupBounds.map((bbox) => bbox.y));
+      const maxX = Math.max(...groupBounds.map((bbox) => bbox.x + bbox.width));
+      const maxY = Math.max(...groupBounds.map((bbox) => bbox.y + bbox.height));
+      const bbox = {
+        x: minX,
+        y: minY,
+        width: maxX - minX,
+        height: maxY - minY,
+      };
+      const requestedTopTrim = 65;
+      const requestedBottomTrim = useTwoLines ? 8 : 50;
+      const maxTotalTrim = Math.max(0, bbox.height - 24);
+      const appliedTopTrim = Math.min(requestedTopTrim, maxTotalTrim);
+      const remainingTrimBudget = Math.max(0, maxTotalTrim - appliedTopTrim);
+      const appliedBottomTrim = Math.min(requestedBottomTrim, remainingTrimBudget);
+      const croppedY = bbox.y + appliedTopTrim;
+      const croppedH = Math.max(24, bbox.height - appliedTopTrim - appliedBottomTrim);
+      const padX = useTwoLines ? 10 : 14;
+      const padTop = useTwoLines ? 2 : 4;
+      const padBottom = useTwoLines ? 2 : 4;
+      const vbW = bbox.width + padX * 2;
+      const vbH = croppedH + padTop + padBottom;
       svgEl.setAttribute(
         "viewBox",
-        `${bbox.x - padX} ${bbox.y - padTop} ${bbox.width + padX * 2} ${bbox.height + padTop + padBottom}`,
+        `${bbox.x - padX} ${croppedY - padTop} ${vbW} ${vbH}`,
       );
-      svgEl.setAttribute("preserveAspectRatio", "xMinYMid meet");
-      svgEl.setAttribute("width", "100%");
-      svgEl.setAttribute("height", String(targetHeight));
+      svgEl.setAttribute("preserveAspectRatio", "xMidYMid meet");
       svgEl.style.display = "block";
+      svgEl.style.overflow = "hidden";
+
+      const containerW = effectiveWidth > 0 ? effectiveWidth : fallbackWidth;
+      // How tall would the content be if we fill the container width?
+      const naturalHeight = Math.ceil(vbH * containerW / vbW);
+
+      // Width-constrained: fill the container width and derive the exact needed height
+      // from the cropped notation bounds so the content stays large with minimal whitespace.
+      svgEl.setAttribute("width", "100%");
+      svgEl.setAttribute("height", String(naturalHeight));
+      svgEl.style.width = "100%";
+      svgEl.style.height = `${naturalHeight}px`;
       svgEl.style.maxWidth = "100%";
-      svgEl.style.height = `${targetHeight}px`;
+      svgEl.style.margin = "";
     }
 
     const nextSvg = stagingContainer.querySelector("svg");
@@ -250,12 +336,12 @@ export function ScaleNotation({
     return () => {
       stagingContainer.remove();
     };
-  }, [notesKey, notationPreference, notes, activePlaybackNoteName, isDarkMode]);
+  }, [notesKey, notationPreference, notes, activePlaybackNoteName, isDarkMode, containerWidth]);
 
   return (
     <div
       ref={containerRef}
-      className="w-full overflow-visible dark:invert"
+      className="min-w-0 w-full overflow-visible dark:invert"
       aria-label="Scale notation"
       role="img"
     />

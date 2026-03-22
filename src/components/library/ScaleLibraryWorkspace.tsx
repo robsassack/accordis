@@ -593,7 +593,7 @@ export function ScaleLibraryWorkspace() {
             <span className="font-semibold">Semitones:</span> {semitoneText}
           </p>
         </div>
-        <div className="mb-4 flex min-h-[108px] items-center justify-center rounded-xl border border-slate-200/80 bg-white/80 px-2 py-1 dark:border-slate-800 dark:bg-slate-950/40">
+        <div className="relative z-10 mb-4 flex items-center justify-center overflow-visible rounded-xl border border-slate-200/80 bg-white/80 px-2 py-0.5 dark:border-slate-800 dark:bg-slate-950/40">
           <ScaleNotation
             notes={notationPitchClasses}
             notationPreference={displayNotationPreference}
