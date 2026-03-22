@@ -189,9 +189,11 @@ function PianoKeyboardContent({
     (keyId: string) => {
       const restoreHorizontalScroll = preserveHorizontalScroll();
       const keyboardTop = scrollContainerRef.current?.getBoundingClientRect().top ?? null;
+      const isCoarsePointer =
+        typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches;
       onKeyClick(keyId);
       restoreHorizontalScroll();
-      if (keyboardTop !== null) {
+      if (keyboardTop !== null && isCoarsePointer) {
         window.requestAnimationFrame(() => {
           const newKeyboardTop = scrollContainerRef.current?.getBoundingClientRect().top ?? keyboardTop;
           const shift = newKeyboardTop - keyboardTop;
