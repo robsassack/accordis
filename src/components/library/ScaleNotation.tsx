@@ -4,6 +4,8 @@ import { useEffect, useLayoutEffect, useState, useRef } from "react";
 import { Accidental, Formatter, Renderer, Stave, StaveNote, Voice } from "vexflow";
 import { pitchClassToIndex, type NotationPreference, type PitchClass } from "@/lib/piano";
 
+export type ScaleNotationDisplayMode = "upper" | "treble" | "bass" | "lower";
+
 type NoteVexInfo = {
   key: string;
   accidental: string | null;
@@ -39,9 +41,23 @@ const FLAT_NOTE_LETTERS: Record<PitchClass, { letter: string; accidental: string
   B: { letter: "b", accidental: null },
 };
 
-function buildScaleNoteInfos(notes: PitchClass[], notationPreference: NotationPreference): NoteVexInfo[] {
+const CLEF_AND_OCTAVE_SHIFT_BY_MODE: Record<
+  ScaleNotationDisplayMode,
+  { clef: "treble" | "bass"; shift: number }
+> = {
+  upper: { clef: "treble", shift: 1 },
+  treble: { clef: "treble", shift: 0 },
+  bass: { clef: "bass", shift: 0 },
+  lower: { clef: "bass", shift: -1 },
+};
+
+function buildScaleNoteInfos(
+  notes: PitchClass[],
+  notationPreference: NotationPreference,
+  baseOctave: number,
+): NoteVexInfo[] {
   const infoMap = notationPreference === "flats" ? FLAT_NOTE_LETTERS : SHARP_NOTE_LETTERS;
-  let octave = 4;
+  let octave = baseOctave;
 
   return notes.map((note, index) => {
     if (index > 0) {
@@ -115,10 +131,12 @@ function parseNoteNameToMidi(noteName: string | null | undefined): number | null
 export function ScaleNotation({
   notes,
   notationPreference,
+  displayMode,
   activePlaybackNoteName,
 }: {
   notes: PitchClass[];
   notationPreference: NotationPreference;
+  displayMode: ScaleNotationDisplayMode;
   activePlaybackNoteName?: string | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -196,11 +214,14 @@ export function ScaleNotation({
     renderer.resize(renderWidth, renderHeight);
     const context = renderer.getContext();
 
-    const noteInfos = buildScaleNoteInfos(notes, notationPreference);
+    const mode = CLEF_AND_OCTAVE_SHIFT_BY_MODE[displayMode];
+    const resolvedClef = mode.clef;
+    const baseOctave = (resolvedClef === "bass" ? 3 : 4) + mode.shift;
+    const noteInfos = buildScaleNoteInfos(notes, notationPreference, baseOctave);
     const activeMidi = parseNoteNameToMidi(activePlaybackNoteName);
     const buildStaveNotes = (infos: NoteVexInfo[]) => infos.map((info) => {
       const note = new StaveNote({
-        clef: "treble",
+        clef: resolvedClef,
         keys: [info.key],
         duration: "8",
       });
@@ -231,7 +252,7 @@ export function ScaleNotation({
       const formatterWidth = Math.max(staveWidth - 102, 48);
       const stave = new Stave(0, y, staveWidth);
       if (showClef) {
-        stave.addClef("treble");
+        stave.addClef(resolvedClef);
       }
       if (noteStartXOverride !== undefined) {
         stave.setNoteStartX(noteStartXOverride);
@@ -304,12 +325,13 @@ export function ScaleNotation({
         return Math.min(lowest, midi);
       }, Number.POSITIVE_INFINITY);
       const lowerLineIsHighRegister = Number.isFinite(lowerLineLowestMidi) && lowerLineLowestMidi >= 67;
+      const oneLineBottomTrim = resolvedClef === "bass" ? 32 : 50;
       const requestedBottomTrim = useTwoLines
         ? Math.max(
             16,
             (lowerLineHasAccidentals ? 30 : 40) + (lowerLineIsHighRegister ? -8 : 0),
           )
-        : 50;
+        : oneLineBottomTrim;
       const maxTotalTrim = Math.max(0, bbox.height - 24);
       let appliedTopTrim = Math.min(requestedTopTrim, maxTotalTrim);
       let appliedBottomTrim = Math.min(requestedBottomTrim, Math.max(0, maxTotalTrim - appliedTopTrim));
@@ -376,7 +398,7 @@ export function ScaleNotation({
     return () => {
       stagingContainer.remove();
     };
-  }, [notesKey, notationPreference, notes, activePlaybackNoteName, isDarkMode, containerWidth]);
+  }, [notesKey, notationPreference, notes, displayMode, activePlaybackNoteName, isDarkMode, containerWidth]);
 
   return (
     <div

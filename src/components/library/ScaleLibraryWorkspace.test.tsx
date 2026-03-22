@@ -182,4 +182,45 @@ describe("ScaleLibraryWorkspace", () => {
     expect(screen.getByRole("option", { name: "Select C Minor Blues scale" })).toBeInTheDocument();
     expect(screen.getByRole("option", { name: "Select C Locrian scale" })).toBeInTheDocument();
   });
+
+  it("supports shifting controls and uses the selected octave when playing", async () => {
+    const user = userEvent.setup();
+    renderScaleWorkspace();
+    await screen.findByRole("heading", { name: "C Major" });
+
+    const upOctaveButton = screen.getByRole("button", { name: "+8va" });
+    const trebleButton = screen.getByRole("button", { name: "Treble" });
+    const bassButton = screen.getByRole("button", { name: "Bass" });
+    const lowerOctaveButton = screen.getByRole("button", { name: "-8vb" });
+
+    expect(upOctaveButton).toHaveAttribute("aria-pressed", "false");
+    expect(trebleButton).toHaveAttribute("aria-pressed", "true");
+    expect(bassButton).toHaveAttribute("aria-pressed", "false");
+    expect(lowerOctaveButton).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(upOctaveButton);
+    expect(upOctaveButton).toHaveAttribute("aria-pressed", "true");
+    expect(trebleButton).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(screen.getByRole("button", { name: "Play selected scale" }));
+
+    await waitFor(() => {
+      expect(toneMockState.start).toHaveBeenCalledTimes(1);
+    });
+    expect(toneMockState.samplerInstances[0]?.triggerAttackRelease.mock.calls[0]?.[0]).toBe("C5");
+  });
+
+  it("plays scales in bass register when bass mode is selected", async () => {
+    const user = userEvent.setup();
+    renderScaleWorkspace();
+    await screen.findByRole("heading", { name: "C Major" });
+
+    await user.click(screen.getByRole("button", { name: "Bass" }));
+    await user.click(screen.getByRole("button", { name: "Play selected scale" }));
+
+    await waitFor(() => {
+      expect(toneMockState.start).toHaveBeenCalledTimes(1);
+    });
+    expect(toneMockState.samplerInstances[0]?.triggerAttackRelease.mock.calls[0]?.[0]).toBe("C3");
+  });
 });

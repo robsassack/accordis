@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useReducer, useRef, u
 import { usePathname, useRouter } from "next/navigation";
 import { useScaleAudio } from "@/components/audio/ScaleAudioProvider";
 import { PianoKeyboard } from "@/components/piano/PianoKeyboard";
-import { ScaleNotation } from "@/components/library/ScaleNotation";
+import { ScaleNotation, type ScaleNotationDisplayMode } from "@/components/library/ScaleNotation";
 import {
   buildPianoKeys,
   formatMusicText,
@@ -26,7 +26,6 @@ import {
   type ScalePlaybackDirection,
 } from "@/lib/scales";
 
-const PIANO_KEYS = buildPianoKeys(4, 5);
 const DEFAULT_SCALE_ID: ScaleId = "major";
 const DEFAULT_ROOT: PitchClass = "C";
 const SCALE_LIBRARY_SESSION_STORAGE_KEY = "accordis-scale-library-session";
@@ -49,6 +48,27 @@ const SCALE_LIBRARY_GROUPS: ReadonlyArray<{
     scaleIds: ["wholeTone", "diminishedHalfWhole", "diminishedWholeHalf"],
   },
 ] as const;
+const SCALE_NOTATION_DISPLAY_MODE_ORDER: readonly ScaleNotationDisplayMode[] = [
+  "upper",
+  "treble",
+  "bass",
+  "lower",
+];
+const SCALE_BASE_OCTAVE_BY_DISPLAY_MODE: Record<ScaleNotationDisplayMode, number> = {
+  upper: 5,
+  treble: 4,
+  bass: 3,
+  lower: 2,
+};
+const SCALE_PIANO_RANGE_BY_DISPLAY_MODE: Record<
+  ScaleNotationDisplayMode,
+  { startOctave: number; endOctave: number }
+> = {
+  upper: { startOctave: 5, endOctave: 6 },
+  treble: { startOctave: 4, endOctave: 5 },
+  bass: { startOctave: 3, endOctave: 4 },
+  lower: { startOctave: 2, endOctave: 3 },
+};
 
 type ScaleLibrarySession = {
   selectedRoot: PitchClass;
@@ -72,10 +92,12 @@ type ScaleLibrarySessionAction =
 
 let scaleLibrarySessionCache: ScaleLibrarySession | null = null;
 let scaleLibraryListScrollTopCache = 0;
+let scaleLibraryNotationDisplayModeCache: ScaleNotationDisplayMode = "treble";
 
 export function resetScaleLibrarySessionCacheForTests(): void {
   scaleLibrarySessionCache = null;
   scaleLibraryListScrollTopCache = 0;
+  scaleLibraryNotationDisplayModeCache = "treble";
 }
 
 function getDefaultScaleLibrarySession(): ScaleLibrarySession {
@@ -202,6 +224,9 @@ export function ScaleLibraryWorkspace() {
     : baseInitialSession;
   const [searchQuery, setSearchQuery] = useState("");
   const [activePlaybackNoteName, setActivePlaybackNoteName] = useState<string | null>(null);
+  const [notationDisplayMode, setNotationDisplayMode] = useState<ScaleNotationDisplayMode>(
+    scaleLibraryNotationDisplayModeCache,
+  );
   const [interactionSelectionOverride, setInteractionSelectionOverride] = useState<{
     root: PitchClass;
     scaleId: ScaleId;
@@ -220,6 +245,9 @@ export function ScaleLibraryWorkspace() {
   } = session;
   const scaleListRef = useRef<HTMLDivElement>(null);
   const selectedScaleOptionRef = useRef<HTMLButtonElement | null>(null);
+  const indicatorTrackRef = useRef<HTMLSpanElement>(null);
+  const [indicatorSegmentWidthPx, setIndicatorSegmentWidthPx] = useState(0);
+  const [indicatorMaxTranslatePx, setIndicatorMaxTranslatePx] = useState(0);
   const hasPendingInteractionSelectionOverride =
     interactionSelectionOverride !== null &&
     pathname.startsWith("/library/scales") &&
@@ -243,9 +271,27 @@ export function ScaleLibraryWorkspace() {
     selectedScalePitchClasses.length > 0
       ? [...selectedScalePitchClasses, selectedScalePitchClasses[0]]
       : selectedScalePitchClasses;
-  const selectedPitchClassSet = new Set(selectedScalePitchClasses);
-  const keyboardSelectedKeyIds = PIANO_KEYS.filter((key) => selectedPitchClassSet.has(key.note)).map(
-    (key) => `${key.note}${key.octave}`,
+  const activeNotationModeIndex = SCALE_NOTATION_DISPLAY_MODE_ORDER.indexOf(notationDisplayMode);
+  const hasMeasuredIndicatorGeometry = indicatorSegmentWidthPx > 0;
+  const indicatorTranslatePx = hasMeasuredIndicatorGeometry
+    ? Math.round(
+        (indicatorMaxTranslatePx * activeNotationModeIndex) /
+          (SCALE_NOTATION_DISPLAY_MODE_ORDER.length - 1),
+      )
+    : 0;
+  const indicatorTransform = hasMeasuredIndicatorGeometry
+    ? `translate3d(${indicatorTranslatePx}px, 0, 0)`
+    : `translateX(${activeNotationModeIndex * 100}%)`;
+  const playbackBaseOctave = SCALE_BASE_OCTAVE_BY_DISPLAY_MODE[notationDisplayMode];
+  const displayPianoKeys = useMemo(() => {
+    const range = SCALE_PIANO_RANGE_BY_DISPLAY_MODE[notationDisplayMode];
+    return buildPianoKeys(range.startOctave, range.endOctave);
+  }, [notationDisplayMode]);
+  const keyboardSelectedKeyIds = buildScalePlaybackNoteNames(
+    activeSelectedRoot,
+    selectedScaleDefinition,
+    "ascending",
+    playbackBaseOctave,
   );
   const scaleNotesText = selectedScalePitchClasses
     .map((pitchClass) => formatMusicText(pitchClass, displayNotationPreference))
@@ -288,6 +334,7 @@ export function ScaleLibraryWorkspace() {
       activeSelectedRoot,
       selectedScaleDefinition,
       playbackDirection,
+      playbackBaseOctave,
     );
     const stepSeconds = 60 / tempoBpm;
     setActivePlaybackNoteName(null);
@@ -295,7 +342,14 @@ export function ScaleLibraryWorkspace() {
       onNotePlay: (noteName) => setActivePlaybackNoteName(noteName),
       onPlaybackEnd: () => setActivePlaybackNoteName(null),
     });
-  }, [activeSelectedRoot, playScaleNoteSequence, playbackDirection, selectedScaleDefinition, tempoBpm]);
+  }, [
+    activeSelectedRoot,
+    playScaleNoteSequence,
+    playbackDirection,
+    playbackBaseOctave,
+    selectedScaleDefinition,
+    tempoBpm,
+  ]);
 
   const handleKeyboardKeyClick = useCallback((keyId: string) => {
     const parsed = parseKeyId(keyId);
@@ -360,6 +414,10 @@ export function ScaleLibraryWorkspace() {
   }, [interactionSelectionOverride, scaleSelectionFromPath, pathname]);
 
   useEffect(() => {
+    scaleLibraryNotationDisplayModeCache = notationDisplayMode;
+  }, [notationDisplayMode]);
+
+  useEffect(() => {
     if (!hasRestored) {
       return;
     }
@@ -399,6 +457,40 @@ export function ScaleLibraryWorkspace() {
     const expectedPath = buildScaleLibraryPath(activeSelectedRoot, activeSelectedScaleId);
     router.replace(expectedPath, { scroll: false });
   }, [activeSelectedRoot, activeSelectedScaleId, pathname, router, scaleSelectionFromPath]);
+
+  useLayoutEffect(() => {
+    const trackElement = indicatorTrackRef.current;
+    if (!trackElement) {
+      return;
+    }
+
+    const updateIndicatorGeometry = (): void => {
+      const trackWidthPx = trackElement.clientWidth;
+      if (trackWidthPx <= 0) {
+        return;
+      }
+
+      const segmentWidthPx = Math.round(trackWidthPx / SCALE_NOTATION_DISPLAY_MODE_ORDER.length);
+      const maxTranslatePx = Math.max(0, trackWidthPx - segmentWidthPx);
+      setIndicatorSegmentWidthPx((previous) =>
+        previous === segmentWidthPx ? previous : segmentWidthPx,
+      );
+      setIndicatorMaxTranslatePx((previous) =>
+        previous === maxTranslatePx ? previous : maxTranslatePx,
+      );
+    };
+
+    updateIndicatorGeometry();
+
+    if (typeof ResizeObserver === "function") {
+      const observer = new ResizeObserver(updateIndicatorGeometry);
+      observer.observe(trackElement);
+      return () => observer.disconnect();
+    }
+
+    window.addEventListener("resize", updateIndicatorGeometry);
+    return () => window.removeEventListener("resize", updateIndicatorGeometry);
+  }, []);
 
   useLayoutEffect(() => {
     const scaleList = scaleListRef.current;
@@ -639,16 +731,92 @@ export function ScaleLibraryWorkspace() {
             <span className="font-semibold">Semitones:</span> {semitoneText}
           </p>
         </div>
+        <div className="mb-2 flex items-center justify-end">
+          <div
+            className="relative inline-grid grid-cols-4 overflow-hidden rounded-lg border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-900"
+            role="group"
+            aria-label="Staff position controls"
+          >
+            <span ref={indicatorTrackRef} aria-hidden className="pointer-events-none absolute inset-1 z-0">
+              <span
+                className="block h-full w-1/4 rounded-md bg-slate-800 transition-transform duration-200 ease-out dark:bg-slate-100"
+                style={{
+                  width: hasMeasuredIndicatorGeometry ? `${indicatorSegmentWidthPx}px` : "25%",
+                  transform: indicatorTransform,
+                }}
+              />
+            </span>
+            <button
+              type="button"
+              aria-label="+8va"
+              className={`relative z-10 inline-flex h-7 items-center justify-center rounded-md px-2 py-1 text-xs font-medium leading-none transition-colors duration-150 ${
+                notationDisplayMode === "upper"
+                  ? "text-white dark:text-slate-900"
+                  : "text-slate-600 hover:text-slate-800 dark:text-slate-300 dark:hover:text-slate-100"
+              }`}
+              onClick={() => setNotationDisplayMode("upper")}
+              aria-pressed={notationDisplayMode === "upper"}
+            >
+              <span aria-hidden className="inline-flex items-start leading-none">
+                +8
+                <span className="-translate-y-[0.32em] font-serif text-[0.9em] italic">va</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              aria-label="Treble"
+              className={`relative z-10 inline-flex h-7 items-center justify-center rounded-md px-2 py-1 text-xs font-medium leading-none transition-colors duration-150 ${
+                notationDisplayMode === "treble"
+                  ? "text-white dark:text-slate-900"
+                  : "text-slate-600 hover:text-slate-800 dark:text-slate-300 dark:hover:text-slate-100"
+              }`}
+              onClick={() => setNotationDisplayMode("treble")}
+              aria-pressed={notationDisplayMode === "treble"}
+            >
+              Treble
+            </button>
+            <button
+              type="button"
+              aria-label="Bass"
+              className={`relative z-10 inline-flex h-7 items-center justify-center rounded-md px-2 py-1 text-xs font-medium leading-none transition-colors duration-150 ${
+                notationDisplayMode === "bass"
+                  ? "text-white dark:text-slate-900"
+                  : "text-slate-600 hover:text-slate-800 dark:text-slate-300 dark:hover:text-slate-100"
+              }`}
+              onClick={() => setNotationDisplayMode("bass")}
+              aria-pressed={notationDisplayMode === "bass"}
+            >
+              Bass
+            </button>
+            <button
+              type="button"
+              aria-label="-8vb"
+              className={`relative z-10 inline-flex h-7 items-center justify-center rounded-md px-2 py-1 text-xs font-medium leading-none transition-colors duration-150 ${
+                notationDisplayMode === "lower"
+                  ? "text-white dark:text-slate-900"
+                  : "text-slate-600 hover:text-slate-800 dark:text-slate-300 dark:hover:text-slate-100"
+              }`}
+              onClick={() => setNotationDisplayMode("lower")}
+              aria-pressed={notationDisplayMode === "lower"}
+            >
+              <span aria-hidden className="inline-flex items-start leading-none">
+                -8
+                <span className="-translate-y-[0.32em] font-serif text-[0.9em] italic">vb</span>
+              </span>
+            </button>
+          </div>
+        </div>
         <div className="relative z-10 mb-4 flex min-h-27 items-center justify-center overflow-visible rounded-xl border border-slate-200/80 bg-white/80 px-2 py-0.5 dark:border-slate-800 dark:bg-slate-950/40">
           <ScaleNotation
             notes={notationPitchClasses}
             notationPreference={displayNotationPreference}
+            displayMode={notationDisplayMode}
             activePlaybackNoteName={activePlaybackNoteName}
           />
         </div>
 
         <PianoKeyboard
-          keys={PIANO_KEYS}
+          keys={displayPianoKeys}
           selectedKeys={keyboardSelectedKeyIds}
           primaryMissingKeyId={null}
           secondaryMissingKeyId={null}
