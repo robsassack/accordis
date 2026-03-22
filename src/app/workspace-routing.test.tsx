@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MetricsDefaults } from "vexflow";
 import WorkspaceLayout from "@/app/(workspace)/layout";
 import { DetectWorkspace } from "@/components/detect/DetectWorkspace";
 import { resetChordLibrarySessionCacheForTests } from "@/components/library/ChordLibraryWorkspace";
@@ -165,6 +166,36 @@ describe("Workspace routing persistence", () => {
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "D♯ Major 7" })).toBeInTheDocument();
     });
+  });
+
+  it("restores global accidental spacing after leaving chord library", async () => {
+    const baselineMetrics = {
+      noteheadAccidentalPadding: MetricsDefaults.Accidental.noteheadAccidentalPadding,
+      accidentalSpacing: MetricsDefaults.Accidental.accidentalSpacing,
+      leftPadding: MetricsDefaults.Accidental.leftPadding,
+    };
+
+    pathnameState.current = "/library/chords/d-sharp/major7";
+    const { rerender } = render(<WorkspaceHarness />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "D♯ Major 7" })).toBeInTheDocument();
+    });
+    expect(MetricsDefaults.Accidental.noteheadAccidentalPadding).toBe(-7);
+    expect(MetricsDefaults.Accidental.accidentalSpacing).toBe(1);
+    expect(MetricsDefaults.Accidental.leftPadding).toBe(0);
+
+    pathnameState.current = "/library/scales/d-sharp/mixolydian";
+    rerender(<WorkspaceHarness />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "D♯ Mixolydian" })).toBeInTheDocument();
+    });
+    expect(MetricsDefaults.Accidental.noteheadAccidentalPadding).toBe(
+      baselineMetrics.noteheadAccidentalPadding,
+    );
+    expect(MetricsDefaults.Accidental.accidentalSpacing).toBe(baselineMetrics.accidentalSpacing);
+    expect(MetricsDefaults.Accidental.leftPadding).toBe(baselineMetrics.leftPadding);
   });
 
   it("keeps saved chord shift and inversion settings when loading a per-chord path", async () => {

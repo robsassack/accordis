@@ -11,6 +11,49 @@ type NoteVexInfo = {
   accidental: string | null;
 };
 
+const CHORD_ACCIDENTAL_METRICS = {
+  noteheadAccidentalPadding: -7,
+  accidentalSpacing: 1,
+  leftPadding: 0,
+} as const;
+
+const DEFAULT_ACCIDENTAL_METRICS = {
+  noteheadAccidentalPadding: MetricsDefaults.Accidental.noteheadAccidentalPadding,
+  accidentalSpacing: MetricsDefaults.Accidental.accidentalSpacing,
+  leftPadding: MetricsDefaults.Accidental.leftPadding,
+};
+
+let chordAccidentalMetricsUsers = 0;
+
+function applyChordAccidentalMetrics() {
+  MetricsDefaults.Accidental.noteheadAccidentalPadding = CHORD_ACCIDENTAL_METRICS.noteheadAccidentalPadding;
+  MetricsDefaults.Accidental.accidentalSpacing = CHORD_ACCIDENTAL_METRICS.accidentalSpacing;
+  MetricsDefaults.Accidental.leftPadding = CHORD_ACCIDENTAL_METRICS.leftPadding;
+}
+
+function restoreDefaultAccidentalMetrics() {
+  MetricsDefaults.Accidental.noteheadAccidentalPadding = DEFAULT_ACCIDENTAL_METRICS.noteheadAccidentalPadding;
+  MetricsDefaults.Accidental.accidentalSpacing = DEFAULT_ACCIDENTAL_METRICS.accidentalSpacing;
+  MetricsDefaults.Accidental.leftPadding = DEFAULT_ACCIDENTAL_METRICS.leftPadding;
+}
+
+function acquireChordAccidentalMetrics() {
+  if (chordAccidentalMetricsUsers === 0) {
+    applyChordAccidentalMetrics();
+  }
+  chordAccidentalMetricsUsers += 1;
+}
+
+function releaseChordAccidentalMetrics() {
+  if (chordAccidentalMetricsUsers === 0) {
+    return;
+  }
+  chordAccidentalMetricsUsers -= 1;
+  if (chordAccidentalMetricsUsers === 0) {
+    restoreDefaultAccidentalMetrics();
+  }
+}
+
 const LETTER_TO_SEMITONE: Record<string, number> = {
   c: 0,
   d: 2,
@@ -234,6 +277,13 @@ export function ChordNotation({
   const targetHeight = 90;
 
   useLayoutEffect(() => {
+    acquireChordAccidentalMetrics();
+    return () => {
+      releaseChordAccidentalMetrics();
+    };
+  }, []);
+
+  useLayoutEffect(() => {
     const container = containerRef.current;
     const notes = notesKey.length > 0 ? (notesKey.split("|") as PitchClass[]) : [];
     if (!container || notes.length === 0) return;
@@ -244,12 +294,6 @@ export function ChordNotation({
     stagingContainer.style.visibility = "hidden";
     stagingContainer.style.pointerEvents = "none";
     container.appendChild(stagingContainer);
-
-    // VexFlow's formatter computes accidental placement from these metrics.
-    // Tightening these values makes accidentals sit closer to noteheads.
-    MetricsDefaults.Accidental.noteheadAccidentalPadding = -7;
-    MetricsDefaults.Accidental.accidentalSpacing = 1;
-    MetricsDefaults.Accidental.leftPadding = 0;
 
     const renderer = new Renderer(stagingContainer, Renderer.Backends.SVG);
     renderer.resize(renderWidth, renderHeight);
