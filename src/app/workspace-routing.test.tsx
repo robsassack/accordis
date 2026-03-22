@@ -52,6 +52,13 @@ describe("Workspace routing persistence", () => {
 
   afterEach(() => {
     cleanup();
+    document.head
+      .querySelectorAll('link[data-test-favicon="true"]')
+      .forEach((link) => {
+        link.remove();
+      });
+    document.documentElement.classList.remove("dark");
+    document.documentElement.style.colorScheme = "";
     if (originalRequestMIDIAccess) {
       navigator.requestMIDIAccess = originalRequestMIDIAccess;
     } else {

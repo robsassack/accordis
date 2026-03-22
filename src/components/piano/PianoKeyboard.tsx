@@ -188,8 +188,18 @@ function PianoKeyboardContent({
   const handleKeyClick = useCallback(
     (keyId: string) => {
       const restoreHorizontalScroll = preserveHorizontalScroll();
+      const keyboardTop = scrollContainerRef.current?.getBoundingClientRect().top ?? null;
       onKeyClick(keyId);
       restoreHorizontalScroll();
+      if (keyboardTop !== null) {
+        window.requestAnimationFrame(() => {
+          const newKeyboardTop = scrollContainerRef.current?.getBoundingClientRect().top ?? keyboardTop;
+          const shift = newKeyboardTop - keyboardTop;
+          if (shift !== 0) {
+            window.scrollBy(0, shift);
+          }
+        });
+      }
     },
     [onKeyClick, preserveHorizontalScroll],
   );

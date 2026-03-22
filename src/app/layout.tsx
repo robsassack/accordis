@@ -16,47 +16,33 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Accordis",
   description: "A chord builder and visualizer for musicians.",
-  icons: {
-    icon: [
-      { url: withBasePath("/logo_light.png"), media: "(prefers-color-scheme: light)", type: "image/png" },
-      { url: withBasePath("/logo_dark.png"), media: "(prefers-color-scheme: dark)", type: "image/png" },
-    ],
-    shortcut: [
-      { url: withBasePath("/logo_light.png"), media: "(prefers-color-scheme: light)", type: "image/png" },
-      { url: withBasePath("/logo_dark.png"), media: "(prefers-color-scheme: dark)", type: "image/png" },
-    ],
-    apple: withBasePath("/logo_light.png"),
-  },
 };
 
-const LIGHT_FAVICON_URL = withBasePath("/logo_light.png");
-const DARK_FAVICON_URL = withBasePath("/logo_dark.png");
+const LIGHT_FAVICON_URL = withBasePath("/logo_light.png?v=light-only");
 
 const themeScript = `
 (() => {
+  const faviconHref = "${LIGHT_FAVICON_URL}";
+  const iconLinks = document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"], link[rel="alternate icon"]');
+
+  if (iconLinks.length === 0) {
+    const iconLink = document.createElement("link");
+    iconLink.rel = "icon";
+    iconLink.type = "image/png";
+    iconLink.href = faviconHref;
+    document.head.appendChild(iconLink);
+  } else {
+    iconLinks.forEach((link) => {
+      link.href = faviconHref;
+      link.media = "";
+    });
+  }
+
   const storageKey = "accordis-theme-preference";
   const stored = window.localStorage.getItem(storageKey);
   const supportsMatchMedia = typeof window.matchMedia === "function";
   const systemPrefersDark = supportsMatchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
   const isDark = stored === "dark" || (stored !== "light" && systemPrefersDark);
-  const faviconHref = isDark ? "${DARK_FAVICON_URL}" : "${LIGHT_FAVICON_URL}";
-
-  const iconLinks = document.querySelectorAll('link[rel="icon"], link[rel="shortcut icon"], link[rel="alternate icon"]');
-  iconLinks.forEach((link) => {
-    link.href = faviconHref;
-    link.media = "";
-  });
-
-  let runtimeIconLink = document.querySelector('link[data-accordis-theme-favicon="true"]');
-  if (!runtimeIconLink) {
-    runtimeIconLink = document.createElement("link");
-    runtimeIconLink.rel = "icon";
-    runtimeIconLink.type = "image/png";
-    runtimeIconLink.setAttribute("data-accordis-theme-favicon", "true");
-    document.head.appendChild(runtimeIconLink);
-  }
-
-  runtimeIconLink.href = faviconHref;
 
   if (isDark) {
     document.documentElement.classList.add("dark");
@@ -75,6 +61,9 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <link rel="icon" href={LIGHT_FAVICON_URL} type="image/png" />
+        <link rel="shortcut icon" href={LIGHT_FAVICON_URL} type="image/png" />
+        <link rel="apple-touch-icon" href={LIGHT_FAVICON_URL} />
         <script id="accordis-theme-init" dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body

@@ -202,6 +202,10 @@ export function ScaleLibraryWorkspace() {
     : baseInitialSession;
   const [searchQuery, setSearchQuery] = useState("");
   const [activePlaybackNoteName, setActivePlaybackNoteName] = useState<string | null>(null);
+  const [interactionSelectionOverride, setInteractionSelectionOverride] = useState<{
+    root: PitchClass;
+    scaleId: ScaleId;
+  } | null>(null);
   const [session, dispatchSession] = useReducer(scaleLibrarySessionReducer, {
     ...initialSession,
     hasRestored: hasCachedSession,
@@ -216,8 +220,20 @@ export function ScaleLibraryWorkspace() {
   } = session;
   const scaleListRef = useRef<HTMLDivElement>(null);
   const selectedScaleOptionRef = useRef<HTMLButtonElement | null>(null);
-  const activeSelectedRoot = scaleSelectionFromPath?.root ?? selectedRoot;
-  const activeSelectedScaleId = scaleSelectionFromPath?.scaleId ?? selectedScaleId;
+  const hasPendingInteractionSelectionOverride =
+    interactionSelectionOverride !== null &&
+    pathname.startsWith("/library/scales") &&
+    (!scaleSelectionFromPath ||
+      scaleSelectionFromPath.root !== interactionSelectionOverride.root ||
+      scaleSelectionFromPath.scaleId !== interactionSelectionOverride.scaleId);
+  const activeSelectedRoot =
+    hasPendingInteractionSelectionOverride && interactionSelectionOverride
+      ? interactionSelectionOverride.root
+      : scaleSelectionFromPath?.root ?? selectedRoot;
+  const activeSelectedScaleId =
+    hasPendingInteractionSelectionOverride && interactionSelectionOverride
+      ? interactionSelectionOverride.scaleId
+      : scaleSelectionFromPath?.scaleId ?? selectedScaleId;
   const selectedScaleDefinition = getScaleDefinitionById(activeSelectedScaleId);
   const displayNotationPreference = rootNotationPreference;
   const selectedRootText = formatMusicText(activeSelectedRoot, rootNotationPreference);
@@ -287,11 +303,12 @@ export function ScaleLibraryWorkspace() {
       return;
     }
 
+    setInteractionSelectionOverride({ root: parsed.note, scaleId: activeSelectedScaleId });
     dispatchSession({ type: "setSelectedRoot", selectedRoot: parsed.note });
     if (pathname.startsWith("/library/scales")) {
-      router.replace(buildScaleLibraryPath(parsed.note, activeSelectedScaleId), { scroll: false });
+      window.history.replaceState(null, "", buildScaleLibraryPath(parsed.note, activeSelectedScaleId));
     }
-  }, [activeSelectedScaleId, pathname, router]);
+  }, [activeSelectedScaleId, pathname]);
 
   const toggleRootNotationPreference = useCallback(() => {
     dispatchSession({ type: "toggleRootNotationPreference" });
@@ -314,6 +331,33 @@ export function ScaleLibraryWorkspace() {
 
     dispatchSession({ type: "restore", session: restoredSession });
   }, []);
+
+  useEffect(() => {
+    if (!interactionSelectionOverride) {
+      return;
+    }
+
+    let timeoutId: number | null = null;
+    if (!pathname.startsWith("/library/scales")) {
+      timeoutId = window.setTimeout(() => {
+        setInteractionSelectionOverride(null);
+      }, 0);
+    } else if (
+      scaleSelectionFromPath &&
+      scaleSelectionFromPath.root === interactionSelectionOverride.root &&
+      scaleSelectionFromPath.scaleId === interactionSelectionOverride.scaleId
+    ) {
+      timeoutId = window.setTimeout(() => {
+        setInteractionSelectionOverride(null);
+      }, 0);
+    }
+
+    return () => {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [interactionSelectionOverride, scaleSelectionFromPath, pathname]);
 
   useEffect(() => {
     if (!hasRestored) {
@@ -433,6 +477,7 @@ export function ScaleLibraryWorkspace() {
                 aria-label={`Select root ${rootText}`}
                 aria-pressed={isSelectedRoot}
                 onClick={() => {
+                  setInteractionSelectionOverride({ root, scaleId: activeSelectedScaleId });
                   dispatchSession({ type: "setSelectedRoot", selectedRoot: root });
                   if (pathname.startsWith("/library/scales")) {
                     router.replace(buildScaleLibraryPath(root, activeSelectedScaleId), {
@@ -499,6 +544,7 @@ export function ScaleLibraryWorkspace() {
                       aria-label={`Select ${selectedRootText} ${scaleDefinition.name} scale`}
                       aria-selected={isSelected}
                       onClick={() => {
+                        setInteractionSelectionOverride({ root: activeSelectedRoot, scaleId: scaleDefinition.id });
                         dispatchSession({ type: "setSelectedScaleId", selectedScaleId: scaleDefinition.id });
                         if (pathname.startsWith("/library/scales")) {
                           router.replace(
@@ -593,7 +639,7 @@ export function ScaleLibraryWorkspace() {
             <span className="font-semibold">Semitones:</span> {semitoneText}
           </p>
         </div>
-        <div className="relative z-10 mb-4 flex items-center justify-center overflow-visible rounded-xl border border-slate-200/80 bg-white/80 px-2 py-0.5 dark:border-slate-800 dark:bg-slate-950/40">
+        <div className="relative z-10 mb-4 flex min-h-27 items-center justify-center overflow-visible rounded-xl border border-slate-200/80 bg-white/80 px-2 py-0.5 dark:border-slate-800 dark:bg-slate-950/40">
           <ScaleNotation
             notes={notationPitchClasses}
             notationPreference={displayNotationPreference}
