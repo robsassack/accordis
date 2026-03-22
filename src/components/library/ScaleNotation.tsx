@@ -292,11 +292,38 @@ export function ScaleNotation({
         height: maxY - minY,
       };
       const requestedTopTrim = 65;
-      const requestedBottomTrim = useTwoLines ? 8 : 50;
+      const lowerLineInfos = useTwoLines
+        ? noteInfos.slice(Math.ceil(noteInfos.length / 2))
+        : noteInfos;
+      const lowerLineHasAccidentals = lowerLineInfos.some((info) => info.accidental !== null);
+      const lowerLineLowestMidi = lowerLineInfos.reduce((lowest, info) => {
+        const midi = parseKeyToMidi(info.key);
+        if (midi === null) {
+          return lowest;
+        }
+        return Math.min(lowest, midi);
+      }, Number.POSITIVE_INFINITY);
+      const lowerLineIsHighRegister = Number.isFinite(lowerLineLowestMidi) && lowerLineLowestMidi >= 67;
+      const requestedBottomTrim = useTwoLines
+        ? Math.max(
+            16,
+            (lowerLineHasAccidentals ? 30 : 40) + (lowerLineIsHighRegister ? -8 : 0),
+          )
+        : 50;
       const maxTotalTrim = Math.max(0, bbox.height - 24);
-      const appliedTopTrim = Math.min(requestedTopTrim, maxTotalTrim);
-      const remainingTrimBudget = Math.max(0, maxTotalTrim - appliedTopTrim);
-      const appliedBottomTrim = Math.min(requestedBottomTrim, remainingTrimBudget);
+      let appliedTopTrim = Math.min(requestedTopTrim, maxTotalTrim);
+      let appliedBottomTrim = Math.min(requestedBottomTrim, Math.max(0, maxTotalTrim - appliedTopTrim));
+      if (useTwoLines) {
+        // Keep mobile crops visually balanced, but stay top-biased so lower stems don't clip.
+        const requestedTotalTrim = Math.min(maxTotalTrim, requestedTopTrim + requestedBottomTrim);
+        const topBias = 0.62;
+        appliedTopTrim = Math.min(requestedTotalTrim * topBias, maxTotalTrim);
+        appliedBottomTrim = Math.min(
+          requestedBottomTrim,
+          requestedTotalTrim - appliedTopTrim,
+          Math.max(0, maxTotalTrim - appliedTopTrim),
+        );
+      }
       const croppedY = bbox.y + appliedTopTrim;
       const croppedH = Math.max(24, bbox.height - appliedTopTrim - appliedBottomTrim);
       const padX = useTwoLines ? 10 : 14;
@@ -304,9 +331,22 @@ export function ScaleNotation({
       const padBottom = useTwoLines ? 2 : 4;
       const vbW = bbox.width + padX * 2;
       const vbH = croppedH + padTop + padBottom;
+      const baseVbX = bbox.x - padX;
+      const baseVbY = croppedY - padTop;
+      // VexFlow can leave a bit of horizontal slack in mobile/two-line mode.
+      // Apply a small centered width boost only, and keep full vertical bounds to avoid clipping.
+      const desiredMobileWidthBoost = useTwoLines ? 1.04 : 1;
+      const minHorizontalInset = 1;
+      const minViewBoxWidth = bbox.width + minHorizontalInset * 2;
+      const maxSafeWidthBoost = minViewBoxWidth > 0 ? vbW / minViewBoxWidth : 1;
+      const mobileWidthBoost = Math.max(1, Math.min(desiredMobileWidthBoost, maxSafeWidthBoost));
+      const finalVbW = vbW / mobileWidthBoost;
+      const finalVbH = vbH;
+      const finalVbX = baseVbX + (vbW - finalVbW) / 2;
+      const finalVbY = baseVbY;
       svgEl.setAttribute(
         "viewBox",
-        `${bbox.x - padX} ${croppedY - padTop} ${vbW} ${vbH}`,
+        `${finalVbX} ${finalVbY} ${finalVbW} ${finalVbH}`,
       );
       svgEl.setAttribute("preserveAspectRatio", "xMidYMid meet");
       svgEl.style.display = "block";
@@ -314,7 +354,7 @@ export function ScaleNotation({
 
       const containerW = effectiveWidth > 0 ? effectiveWidth : fallbackWidth;
       // How tall would the content be if we fill the container width?
-      const naturalHeight = Math.ceil(vbH * containerW / vbW);
+      const naturalHeight = Math.ceil(finalVbH * containerW / finalVbW);
 
       // Width-constrained: fill the container width and derive the exact needed height
       // from the cropped notation bounds so the content stays large with minimal whitespace.
